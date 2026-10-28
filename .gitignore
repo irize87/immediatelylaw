@@ -1,0 +1,21 @@
+# 바이트코드/빌드 산출물
+__pycache__/
+*.pyc
+build/
+dist/
+
+# 로그·배포 zip
+*.log
+*.zip
+
+# 로컬 데이터(재현 가능하거나 대용량 — 저장소 제외)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/dist/
+data/_distrepo/
+
+# regulations: 폴더는 두되 파일은 제외, 샘플(hwpx)과 안내만 커밋
+data/regulations/*
+!data/regulations/*.hwpx
+!data/regulations/README.md
