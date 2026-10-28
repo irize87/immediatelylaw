@@ -38,7 +38,7 @@ DEFAULTS = {
     "auto_hide_sec": 30,           # 0 = 자동 숨김 없음(고정)
     "verify_enabled": True,        # 현행 여부 백그라운드 검증
     "hotkey_enabled": True,        # Ctrl+Alt+L 조회창
-    "autostart": False,
+    "autostart": True,             # Windows 시작 시 자동 실행(기본 켬)
     "clipboard_paused": False,
     "last_update_check": "",       # 마지막 개정 점검(YYYYMMDDHHMM)
     "data_base_url": "https://raw.githubusercontent.com/nazgregory/immediatelylaw-data/dist",

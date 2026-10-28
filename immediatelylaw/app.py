@@ -100,6 +100,16 @@ class ImmediatelyLaw(QObject):
 
     # ---------- 부팅 ----------
     def _boot(self):
+        # 시작 프로그램 기본 켬: 설정에서 꺼둔 적(autostart=False 저장)이
+        # 없으면 Run 키를 항상 유지하고, 실행 경로가 바뀌었으면 갱신한다.
+        try:
+            from .settingsdlg import (_autostart_command, get_autostart_command,
+                                      set_autostart)
+            if self.cfg["autostart"] and \
+                    get_autostart_command() != _autostart_command():
+                set_autostart(True)
+        except OSError:
+            pass
         try:
             ok, fail = localreg.scan_dir(self.db)
             for fn, name, n in ok:

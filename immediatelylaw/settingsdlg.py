@@ -47,12 +47,31 @@ def set_autostart(enable: bool):
         if enable:
             winreg.SetValueEx(k, "ImmediatelyLaw", 0, winreg.REG_SZ,
                               _autostart_command())
+            try:   # 옛 한글 이름 항목이 남아 있으면 시작 시 중복 실행된다
+                winreg.DeleteValue(k, "즉시로")
+            except FileNotFoundError:
+                pass
         else:
             for name in ("ImmediatelyLaw", "즉시로"):
                 try:
                     winreg.DeleteValue(k, name)
                 except FileNotFoundError:
                     pass
+
+
+def get_autostart_command():
+    """Run 키에 등록되어 있는 실행 문자열. 미등록이면 None."""
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY) as k:
+            for name in ("ImmediatelyLaw", "즉시로"):
+                try:
+                    return winreg.QueryValueEx(k, name)[0]
+                except FileNotFoundError:
+                    continue
+    except OSError:
+        pass
+    return None
 
 
 def get_autostart() -> bool:
@@ -241,6 +260,8 @@ class SettingsDialog(QDialog):
         self.cfg["hotkey_enabled"] = self.chk_hotkey.isChecked()
         self.cfg["clipboard_paused"] = self.chk_pause.isChecked()
         self.cfg["data_base_url"] = self.ed_url.text().strip()
+        # 의도된 시작 실행 상태를 설정에 기록(부팅 시 자동 등록 판단용)
+        self.cfg["autostart"] = self.chk_auto.isChecked()
         self.cfg.save()
         if self.chk_auto.isChecked() != get_autostart():
             try:
