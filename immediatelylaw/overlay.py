@@ -2,6 +2,7 @@
 """화면 한켠에 뜨는 담백한 조문 카드."""
 import html
 import re
+import time
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont
@@ -82,6 +83,19 @@ class OverlayCard(QWidget):
         top.addWidget(self.lb_title)
         top.addStretch(1)
         top.addWidget(self.lb_badge)
+        # (현행) 배지 옆 닫기 버튼
+        self.btn_close = QPushButton("✕")
+        self.btn_close.setFixedSize(22, 22)
+        self.btn_close.setCursor(Qt.PointingHandCursor)
+        self.btn_close.setFocusPolicy(Qt.NoFocus)   # 카드(Esc) 포커스 유지
+        self.btn_close.setToolTip("창 닫기 (Esc 두 번)")
+        self.btn_close.setStyleSheet(
+            "QPushButton{border:none;border-radius:5px;background:transparent;"
+            "color:#8a919c;font-family:'Malgun Gothic';font-size:10pt;}"
+            "QPushButton:hover{background:#f0f2f5;color:#3a3f46;}"
+            "QPushButton:pressed{background:#e2e5e9;}")
+        self.btn_close.clicked.connect(self.hide)
+        top.addWidget(self.btn_close)
         root.addLayout(top)
 
         self.tv = QTextBrowser(self)
@@ -133,6 +147,7 @@ class OverlayCard(QWidget):
     # ---------- 표시 ----------
     def show_result(self, res: dict, note: str = ""):
         self._current = res
+        self._esc_at = 0.0
         head = f"{res['law_name']} 제{res['art_no']}조"
         if res.get("title"):
             head += f"({res['title']})"
@@ -225,10 +240,27 @@ class OverlayCard(QWidget):
             self.lb_state.setText("클립보드에 복사했습니다.")
 
     def keyPressEvent(self, e):
-        if e.key() in (Qt.Key_Escape, Qt.Key_Q):
+        if e.key() == Qt.Key_Q:
             self.hide()
+        elif e.key() == Qt.Key_Escape:
+            # 2초 안에 두 번 눌러야 닫힌다(실수 닫기 방지).
+            now = time.monotonic()
+            if now - getattr(self, "_esc_at", 0.0) <= 2.0:
+                self._esc_at = 0.0
+                self.hide()
+            else:
+                self._esc_at = now
+                self._state_saved = self.lb_state.text()
+                self.lb_state.setText("닫으려면 Esc를 한 번 더 누르세요")
+                QTimer.singleShot(2100, self._esc_hint_off)
         else:
             super().keyPressEvent(e)
+
+    def _esc_hint_off(self):
+        if time.monotonic() - getattr(self, "_esc_at", 0.0) > 2.0:
+            self._esc_at = 0.0
+            if self.isVisible():
+                self.lb_state.setText(getattr(self, "_state_saved", ""))
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
