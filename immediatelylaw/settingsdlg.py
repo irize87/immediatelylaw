@@ -105,6 +105,7 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._tab_api(), "API 키")
         self.tabs.addTab(self._tab_overlay(), "오버레이")
         self.tabs.addTab(self._tab_general(), "일반")
+        self.tabs.addTab(self._tab_info(), "정보")
 
     # ---------- 데이터 ----------
     def _tab_data(self):
@@ -227,10 +228,14 @@ class SettingsDialog(QDialog):
         self.sp_hide = QSpinBox(minimum=0, maximum=300,
                                 value=int(self.cfg["auto_hide_sec"]))
         self.sp_hide.setSuffix(" 초  (0 = 고정)")
+        self.sp_font = QSpinBox(minimum=8, maximum=20,
+                                value=int(self.cfg["font_pt"]))
+        self.sp_font.setSuffix(" pt")
         self.chk_verify = QCheckBox("표시 후 현행 여부 자동 확인")
         self.chk_verify.setChecked(bool(self.cfg["verify_enabled"]))
         form.addRow("카드 폭", self.sp_w)
         form.addRow("위 위치", self.cb_corner)
+        form.addRow("글자 크기 (장·절·본문)", self.sp_font)
         form.addRow("자동 숨김", self.sp_hide)
         form.addRow("검증", self.chk_verify)
         return w
@@ -251,11 +256,53 @@ class SettingsDialog(QDialog):
         lay.addStretch(1)
         return w
 
+    # ---------- 정보 ----------
+    def _tab_info(self):
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        title = QLabel(
+            f"<div style='font-size:13pt;font-weight:bold;'>즉시로 "
+            f"(ImmediatelyLaw)&nbsp;<span style='color:#6b7280;"
+            f"font-weight:normal;'>v{__version__}</span></div>"
+            "<span style='color:#374151;'>복사(Ctrl+C)만 하면 조문이 화면 "
+            "오른쪽 아래에 — 법령 조문을 가장 빠르고 간편하게</span>")
+        title.setTextFormat(Qt.RichText)
+        title.setWordWrap(True)
+        lay.addWidget(title)
+        info = QLabel(
+            "<table cellspacing='0' cellpadding='2'>"
+            "<tr><td style='color:#6b7280;padding-right:12px;'>제작자</td>"
+            "<td>홍성민(서초구청)</td></tr>"
+            "<tr><td style='color:#6b7280;'>연락처</td>"
+            "<td><a href='mailto:nazgregory@gmail.com'>nazgregory@gmail.com"
+            "</a><br>"
+            "<a href='mailto:irize@seocho.go.kr'>irize@seocho.go.kr</a><br>"
+            "02-2155-6089</td></tr>"
+            "<tr><td style='color:#6b7280;'>소스 코드</td>"
+            "<td><a href='https://github.com/nazgregory/ImmediatelyLaw'>"
+            "github.com/nazgregory/ImmediatelyLaw</a> (MIT)</td></tr>"
+            "<tr><td style='color:#6b7280;'>법령 데이터</td>"
+            "<td><a href='https://github.com/nazgregory/immediatelylaw-data'>"
+            "immediatelylaw-data</a> — 국가법령정보센터(법제처) 개방 데이터</td>"
+            "</tr></table>")
+        info.setTextFormat(Qt.RichText)
+        info.setOpenExternalLinks(True)
+        info.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        lay.addWidget(info)
+        tip = QLabel("· 법령의 효력 판정은 공식 원문이 기준이며, "
+                     "즉시로의 표시는 참고용입니다.")
+        tip.setStyleSheet("color:#6b7280;")
+        tip.setWordWrap(True)
+        lay.addWidget(tip)
+        lay.addStretch(1)
+        return w
+
     # ---------- 저장 ----------
     def _save_fields(self):
         self.cfg["overlay_width"] = self.sp_w.value()
         self.cfg["overlay_corner"] = self.cb_corner.currentData()
         self.cfg["auto_hide_sec"] = self.sp_hide.value()
+        self.cfg["font_pt"] = self.sp_font.value()
         self.cfg["verify_enabled"] = self.chk_verify.isChecked()
         self.cfg["hotkey_enabled"] = self.chk_hotkey.isChecked()
         self.cfg["clipboard_paused"] = self.chk_pause.isChecked()

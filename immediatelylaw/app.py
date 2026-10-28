@@ -165,9 +165,9 @@ class ImmediatelyLaw(QObject):
                                hints=c.get("law_all"))
         if res.get("found"):
             if res["source"] == "local":
-                self.overlay.show_result(res, note="로컬 데이터")
+                self.overlay.show_result(res)
             elif res["source"] == "local-reg":
-                self.overlay.show_result(res, note="등록 파일")
+                self.overlay.show_result(res)
             else:
                 self.overlay.show_result(res)
             if len(cites) > 1:
@@ -196,7 +196,7 @@ class ImmediatelyLaw(QObject):
 
     def _on_live_resolved(self, res: dict):
         if res.get("found"):
-            self.overlay.show_result(res, note="법제처에서 가져옴")
+            self.overlay.show_result(res)
         else:
             self.overlay.set_badge("check", "(확인)")
             self.overlay.set_state("법제처에서도 찾을 수 없습니다.")
@@ -205,12 +205,8 @@ class ImmediatelyLaw(QObject):
     def _start_verify(self, res: dict):
         if not self.cfg["verify_enabled"]:
             ver = self.db.get_meta("data_ver")
-            if ver:
-                kind, msg = "current", f"데이터 {ver[4:6]}.{ver[6:8]} 기준 · 미검증"
-            else:
-                kind, msg = "check", "미검증"
-            self.overlay.set_badge(kind, "(현행)" if kind == "current" else "(확인)")
-            self.overlay.set_state(msg)
+            self.overlay.set_badge("current" if ver else "check",
+                                   "(현행)" if ver else "(확인)")
             return
         w = VerifyWorker(self.db, self.api, res)
         w.done.connect(self._on_verified)
@@ -222,7 +218,6 @@ class ImmediatelyLaw(QObject):
                 "offline": "(오프라인)"}.get(kind)
         self.overlay.set_badge(kind if kind in ("current", "check")
                                else "neutral", text)
-        self.overlay.set_state(msg)
 
     def _copy_out(self, text: str):
         note_self_copy(text)

@@ -22,7 +22,8 @@ BADGE_TEXT = {
 }
 
 
-def article_html(res: dict) -> str:
+def article_html(res: dict, pt: float = 11) -> str:
+    """장·절 표기와 본문이 같은 폰트(맑은 고딕)·같은 크기로 렌더된다."""
     body = res.get("body", "")
     # 헤더에 이미 나오는 '제N조(제목)' 접두만 본문에서 제거
     body = re.sub(r"^\s*제\s*[0-9]+(?:의[0-9]+)?\s*조\s*[（(][^）)]*[）)]\s*",
@@ -33,16 +34,16 @@ def article_html(res: dict) -> str:
              re.split(r"(?=[%s])|\n" % CIRCLED, body) if p.strip()]
     if not paras:
         paras = [body.strip()]
+    style = ("font-family:'Malgun Gothic';font-size:%gpt;line-height:1.62;"
+             % pt)
     inner = "".join(
-        f'<p style="margin:4px 0 4px 0;line-height:1.62;">{html.escape(p)}</p>'
-        for p in paras)
+        f'<p style="margin:4px 0 4px 0;{style}color:#20242b;">'
+        f'{html.escape(p)}</p>' for p in paras)
     chap = res.get("chap")
-    chap_html = (f'<div style="color:#8a919c;font-size:9pt;margin-bottom:4px;">'
+    chap_html = (f'<div style="{style}color:#5b6470;margin-bottom:4px;">'
                  f'{html.escape(chap)}</div>') if chap else ""
     # 주의: style 특성 안에 이중따옴표 금지(파싱 깨짐). 폰트도 강제로 지정.
-    return (chap_html +
-            '<div style="font-family:Batang,Myeongjo,serif;'
-            'font-size:11.5pt;color:#20242b;">' + inner + "</div>")
+    return chap_html + inner
 
 
 class OverlayCard(QWidget):
@@ -107,11 +108,16 @@ class OverlayCard(QWidget):
         root.addWidget(self.tv)
 
         foot = QHBoxLayout(); foot.setSpacing(8)
+        # 장·절·본문 글자크기 조절 버튼(둥근네모). 값은 설정에 저장되어 유지된다.
+        self.btn_font_dec = self._font_btn("−", "글자 작게 (장·절·본문)")
+        self.btn_font_inc = self._font_btn("+", "글자 크게 (장·절·본문)")
+        self.btn_font_dec.clicked.connect(lambda: self._change_font(-1))
+        self.btn_font_inc.clicked.connect(lambda: self._change_font(1))
         self.lb_state = QLabel("")
         sf = QFont("Malgun Gothic", 8)
         self.lb_state.setFont(sf)
         self.lb_state.setStyleSheet("color:#8a919c;")
-        self.btn_copy = QPushButton("  조문 복사  ")
+        self.btn_copy = QPushButton("  복사  ")
         self.btn_copy.setCursor(Qt.PointingHandCursor)
         self.btn_copy.setStyleSheet(
             "QPushButton{border:1px solid #c6cbd2;border-radius:5px;"
@@ -120,6 +126,8 @@ class OverlayCard(QWidget):
             "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}"
             "QPushButton:pressed{background:#e2e9f4;}")
         self.btn_copy.clicked.connect(self._on_copy)
+        foot.addWidget(self.btn_font_dec)
+        foot.addWidget(self.btn_font_inc)
         foot.addWidget(self.lb_state)
         foot.addStretch(1)
         # 법령정보센터 바로 이동 링크
@@ -129,8 +137,29 @@ class OverlayCard(QWidget):
         self.btn_site.setToolTip("국가법령정보센터(www.law.go.kr) 열기")
         self.btn_site.linkActivated.connect(self._open_site)
         foot.addWidget(self.btn_site)
+        # 제작자 링크(깃허브 페이지)
+        self.btn_author = QLabel(
+            "<a href='https://github.com/nazgregory'>제작자 ↗</a>")
+        self.btn_author.setFont(QFont("Malgun Gothic", 8))
+        self.btn_author.setCursor(Qt.PointingHandCursor)
+        self.btn_author.setToolTip("제작자 GitHub 페이지 열기")
+        foot.addWidget(self.btn_author)
         foot.addWidget(self.btn_copy)
         root.addLayout(foot)
+
+    def _font_btn(self, text: str, tip: str) -> QPushButton:
+        b = QPushButton(text)
+        b.setFixedSize(24, 24)
+        b.setCursor(Qt.PointingHandCursor)
+        b.setFocusPolicy(Qt.NoFocus)   # 카드(Esc) 포커스 유지
+        b.setToolTip(tip)
+        b.setStyleSheet(
+            "QPushButton{border:1px solid #c6cbd2;border-radius:7px;"
+            "background:#f7f8fa;color:#4a5058;"
+            "font-family:'Malgun Gothic';font-size:11pt;font-weight:bold;}"
+            "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}"
+            "QPushButton:pressed{background:#e2e9f4;}")
+        return b
 
     @staticmethod
     def _open_site():
@@ -161,11 +190,38 @@ class OverlayCard(QWidget):
             self.set_badge("check", "(시행예정)")
         else:
             self.set_badge("neutral", "(조회)")
-        self.tv.setHtml(article_html(res))
+        self.tv.setHtml(article_html(res, self._pt()))
         self.lb_state.setText(note)
         self._place_and_show()
         if res.get("source") != "local-reg":
             self.verify_requested.emit(res)
+
+    # ---------- 글자크기 ----------
+    def _pt(self) -> int:
+        try:
+            return max(8, min(20, int(self.cfg["font_pt"])))
+        except (TypeError, ValueError):
+            return 11
+
+    def _change_font(self, delta: int):
+        pt = max(8, min(20, self._pt() + delta))
+        if pt == self._pt():
+            return
+        self.cfg["font_pt"] = pt
+        self.cfg.save()               # 사용자가 조정하면 설정에 저장되어 유지
+        if self._current:
+            self.tv.setHtml(article_html(self._current, pt))
+        self._reflow()
+
+    def _reflow(self):
+        """글자크기 변경 후 높이를 다시 맞추되 밑변(위쪽 고정 모서리는 윗변)을 유지."""
+        self.adjustSize()
+        h = min(self.sizeHint().height() + 20,
+                int(self._screen_h() * 0.72))
+        bottom = self.y() + self.height()
+        self.setFixedHeight(h)
+        if not str(self.cfg["overlay_corner"]).startswith("top"):
+            self.move(self.x(), bottom - h)
 
     def set_badge(self, kind: str, text: str = ""):
         style = BADGE_STYLE.get(kind, BADGE_STYLE["neutral"])[0]
