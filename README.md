@@ -2,11 +2,13 @@
 # Immediately Law — The world's fastest law check, ever.
 
 <p align="center">
-  <img src="assets/screenshot.png" width="720" alt="즉시로 화면 갈무리">
+  <a href="https://youtu.be/rZUceBYTzhg" target="_blank" rel="noopener">
+    <img src="assets/screenshot.png" width="720" alt="즉시로 화면 갈무리">
+  </a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.3.6-blue" alt="v1.3.6">
+  <img src="https://img.shields.io/badge/version-v1.3.7-blue" alt="v1.3.7">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Windows 10/11">
   <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
@@ -105,7 +107,7 @@ zip을 받아 압축을 풉니다.
   키는 Windows DPAPI로 암호화 저장되어 이 PC의 사용자만 열 수 있습니다. 없어도 전부 동작합니다.
 - **오버레이**: 모드(시스템/라이트/다크), 카드 너비, 화면 위치(4곳), 글자 크기(pt 수치 지정),
   자동 숨김 시간, 현행 여부 실시간 검증
-- **일반**: 단축키 사용, 클립보드 감시 일시정지, Windows 시작 시 실행(기본 값)
+- **일반**: 단축키 사용, 클립보드 감시 일시정지, Windows 시작 시 실행(기본 값), 새 버전 알림·자동 업데이트(기본 켬 — 새 릴리스가 나오면 안내 후 사용자가 동의할 때만 적용)
 - **정보**: 제작자·연락처·소스 저장소·데이터 출처 안내
 
 ---

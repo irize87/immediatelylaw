@@ -95,6 +95,7 @@ def get_autostart() -> bool:
 
 class SettingsDialog(QDialog):
     update_requested = Signal()
+    app_update_requested = Signal()   # 프로그램 새 버전 확인(수동)
     saved = Signal()
 
     def __init__(self, cfg, db, parent=None):
@@ -432,9 +433,15 @@ class SettingsDialog(QDialog):
         self.chk_pause.setChecked(bool(self.cfg["clipboard_paused"]))
         self.chk_auto = QCheckBox("Windows 시작 시 자동으로 실행")
         self.chk_auto.setChecked(get_autostart())
+        self.chk_updchk = QCheckBox("새 버전 알림(자동 업데이트 확인)")
+        self.chk_updchk.setChecked(bool(self.cfg.get("update_check", True)))
+        self.btn_updnow = QPushButton("지금 새 버전 확인")
+        self.btn_updnow.clicked.connect(self.app_update_requested.emit)
         lay.addWidget(self.chk_hotkey)
         lay.addWidget(self.chk_pause)
         lay.addWidget(self.chk_auto)
+        lay.addWidget(self.chk_updchk)
+        lay.addWidget(self.btn_updnow)
         lay.addStretch(1)
         return w
 
@@ -514,6 +521,7 @@ class SettingsDialog(QDialog):
             self.cfg["data_base_url"] = url
         # 의도된 시작 실행 상태를 설정에 기록(부팅 시 자동 등록 판단용)
         self.cfg["autostart"] = self.chk_auto.isChecked()
+        self.cfg["update_check"] = self.chk_updchk.isChecked()
         self.cfg.save()
         if self.chk_auto.isChecked() != get_autostart():
             try:

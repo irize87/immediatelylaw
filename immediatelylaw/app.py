@@ -22,7 +22,8 @@ from .searchwin import SearchWindow
 from .settingsdlg import SettingsDialog
 from .watcher import ClipboardWatcher, note_self_copy
 from . import workers
-from .workers import UpdaterWorker, VerifyWorker
+from .workers import (AppDownloadWorker, AppUpdateWorker, UpdaterWorker,
+                      VerifyWorker)
 
 HOTKEY_ID = 0x5B51
 
@@ -83,6 +84,9 @@ class ImmediatelyLaw(QObject):
 
         self.search = None
         self.settings = None
+        self._app_upd = None     # 실행 중인 버전 확인 워커
+        self._dl = None          # 실행 중인 설치 파일 다운로드 워커
+        self._dlprog = None
 
         self.tray = QSystemTrayIcon(make_icon(), app)
         self.tray.setToolTip(APP_TITLE)
@@ -98,7 +102,13 @@ class ImmediatelyLaw(QObject):
         # 시작 시: 자치법규 스캔 → 데이터 부팅 → 백그라운드 갱신
         QTimer.singleShot(60, self._boot)
         self._upd_timer = QTimer(self, interval=8 * 3600 * 1000)
-        self._upd_timer.timeout.connect(lambda: self._update(auto=True))
+        self._upd_timer.timeout.connect(self._timer_tick)
+        # 프로그램 새 버전 확인: 부팅 20초 후 1회, 이후 8시간마다.
+        QTimer.singleShot(20000, lambda: self._check_app_update(auto=True))
+
+    def _timer_tick(self):
+        self._update(auto=True)
+        self._check_app_update(auto=True)
 
     # ---------- 부팅 ----------
     def _boot(self):
@@ -297,6 +307,155 @@ class ImmediatelyLaw(QObject):
         elif not auto:
             QMessageBox.information(self.search or None, APP_TITLE, msg)
 
+    # ---------- 프로그램 새 버전(자동 업데이트) ----------
+    def _check_app_update(self, auto=True):
+        if auto and not self.cfg.get("update_check", True):
+            return
+        if self._app_upd is not None or self._dl is not None:
+            return
+        w = AppUpdateWorker(__version__,
+                            offline=bool(workers.bundled_snapshot()))
+        self._app_upd = w
+        self._workers.append(w)
+        w.finished.connect(lambda: self._workers.remove(w)
+                           if w in self._workers else None)
+        w.finished.connect(lambda: setattr(self, "_app_upd", None))
+        w.found.connect(lambda info: self._offer_update(info, auto))
+        w.latest.connect(lambda: None if auto else QMessageBox.information(
+            self.search or None, APP_TITLE,
+            f"이미 최신 버전(v{__version__})입니다."))
+        w.failed.connect(lambda m: None if auto else QMessageBox.information(
+            self.search or None, APP_TITLE, f"버전 확인에 실패했습니다.\n{m}"))
+        w.start()
+
+    def _offer_update(self, info: dict, auto: bool):
+        ver = info["version"]
+        if auto and ver == self.cfg.get("update_skip_ver", ""):
+            return
+        box = QMessageBox(QMessageBox.Information, APP_TITLE,
+                          f"새 버전 v{ver}이(가) 나왔습니다 "
+                          f"(현재 v{__version__}).\n\n"
+                          "지금 자동 업데이트할까요?\n"
+                          "다운로드 후 설치가 끝나면 프로그램이 자동으로 "
+                          "재시작됩니다.",
+                          QMessageBox.NoButton, None)
+        b_yes = box.addButton("자동 업데이트", QMessageBox.AcceptRole)
+        b_no = box.addButton("나중에", QMessageBox.RejectRole)
+        b_skip = box.addButton("이 버전은 알림 끄기", QMessageBox.DestructiveRole) \
+            if auto else None
+        box.setDefaultButton(b_no)
+        box.setWindowFlags(box.windowFlags() | Qt.WindowStaysOnTopHint)
+        # exec() 반환값은 표준 버튼 int라 커스텀 버튼과 대조가 불안정하다.
+        # 클릭 시그널로 선택을 기록한다.
+        choice = []
+        b_yes.clicked.connect(lambda: choice.append("yes"))
+        b_no.clicked.connect(lambda: choice.append("no"))
+        if b_skip is not None:
+            b_skip.clicked.connect(lambda: choice.append("skip"))
+        box.exec()
+        sel = choice[0] if choice else "no"
+        if sel == "yes":
+            self._download_update(info)
+        elif sel == "skip":
+            self.cfg["update_skip_ver"] = ver
+            self.cfg.save()
+        elif not auto:
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            if info.get("page"):
+                QDesktopServices.openUrl(QUrl(info["page"]))
+
+    def _download_update(self, info: dict):
+        if self._dl is not None:
+            return
+        w = AppDownloadWorker(info)
+        self._dl = w
+        self._workers.append(w)
+        w.finished.connect(lambda: self._workers.remove(w)
+                           if w in self._workers else None)
+        w.finished.connect(lambda: setattr(self, "_dl", None))
+        dlg = QProgressDialog(f"v{info['version']} 업데이트 준비 중…",
+                              "취소", 0, 100, None)
+        dlg.setWindowTitle(APP_TITLE)
+        dlg.setWindowModality(Qt.WindowModal)
+        dlg.setMinimumDuration(0)
+        dlg.setValue(0)
+        self._dlprog = dlg
+        w.progress.connect(self._dl_progress)
+        w.failed.connect(self._dl_failed)
+        dlg.canceled.connect(lambda: setattr(w, "cancel", True))
+        w.ready.connect(lambda path: self._apply_update(path, info))
+        w.start()
+
+    def _dl_progress(self, msg, pct):
+        if self._dlprog is None:
+            return
+        self._dlprog.setRange(0, 100 if pct >= 0 else 0)
+        self._dlprog.setLabelText(msg)
+        if pct >= 0:
+            self._dlprog.setValue(pct)
+
+    def _dl_failed(self, msg: str):
+        if self._dlprog is not None:
+            self._dlprog.reset()
+            self._dlprog = None
+        QMessageBox.warning(self.search or None, APP_TITLE,
+                            f"업데이트 준비에 실패했습니다.\n{msg}")
+
+    def _apply_update(self, src_dir: str, info: dict):
+        """지금 프로세스를 종료하고, 교체 배치(update.bat)로 파일을 덮어쓴 뒤
+        새 exe를 실행한다. 설정·법령 데이터(%APPDATA%)는 그대로 남는다."""
+        if self._dlprog is not None:
+            self._dlprog.reset()
+            self._dlprog = None
+        if not getattr(sys, "frozen", False):
+            QMessageBox.information(
+                self.search or None, APP_TITLE,
+                "개발 환경에서는 자동 업데이트를 적용할 수 없습니다.\n"
+                "GitHub Releases에서 설치 파일을 받아 설치하세요.")
+            return
+        import subprocess
+        exe = sys.executable
+        dst = os.path.dirname(exe)
+        bat = os.path.join(os.environ.get("TEMP", os.path.expanduser("~")),
+                           "immediatelylaw-update.bat")
+        # ASCII만 사용: 코드 페이지와 무관하게 동작하도록.
+        script = (
+            "@echo off\r\n"
+            "set PID=%~1\r\n"
+            "set SRC=%~2\r\n"
+            "set DST=%~3\r\n"
+            ":loop\r\n"
+            "ping -n 2 127.0.0.1 >nul\r\n"
+            "taskkill /PID %PID% /F >nul 2>&1\r\n"
+            "if not errorlevel 1 goto loop\r\n"
+            "robocopy \"%SRC%\" \"%DST%\" /E /R:5 /W:2 /NFL /NDL /NJH /NJS"
+            " >\"%TEMP%\\immediatelylaw-update.log\" 2>&1\r\n"
+            "if %ERRORLEVEL% GEQ 8 goto fail\r\n"
+            "start \"\" \"%DST%\\ImmediatelyLaw.exe\"\r\n"
+            "goto end\r\n"
+            ":fail\r\n"
+            "start \"\" /min cmd /k type"
+            " \"%TEMP%\\immediatelylaw-update.log\"\r\n"
+            ":end\r\n"
+            "del \"%~f0\"\r\n")
+        try:
+            with open(bat, "w", encoding="ascii") as f:
+                f.write(script)
+            detached = 0x00000008 | 0x00000200  # DETACHED | NEW_PROCESS_GROUP
+            subprocess.Popen(["cmd.exe", "/c", bat, str(os.getpid()),
+                              src_dir, dst],
+                             creationflags=detached, close_fds=True)
+        except OSError as e:
+            QMessageBox.warning(self.search or None, APP_TITLE,
+                                f"업데이트 시작에 실패했습니다.\n{e}")
+            return
+        self.tray.showMessage(APP_TITLE,
+                              f"v{info['version']} 업데이트 적용 후 "
+                              "재시작합니다…",
+                              QSystemTrayIcon.Information, 4000)
+        QTimer.singleShot(600, lambda: os._exit(0))
+
     # ---------- 창 ----------
     @staticmethod
     def _center(win):
@@ -322,6 +481,8 @@ class ImmediatelyLaw(QObject):
             self.settings.saved.connect(self._refresh_api)
             self.settings.saved.connect(self._apply_theme)
             self.settings.update_requested.connect(lambda: self._update(auto=False))
+            self.settings.app_update_requested.connect(
+                lambda: self._check_app_update(auto=False))
             self.settings.finished.connect(
                 lambda _: setattr(self, "settings", None))
             self._center(self.settings)

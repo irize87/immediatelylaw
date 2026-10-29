@@ -4,6 +4,7 @@ import hashlib
 import lzma
 import os
 import tempfile
+import zipfile
 
 import requests
 from PySide6.QtCore import QThread, Signal
@@ -228,3 +229,117 @@ class UpdaterWorker(QThread):
         finally:
             if os.path.exists(tmp_xz):
                 os.remove(tmp_xz)
+
+
+# ---------- 프로그램 자체 업데이트(GitHub Releases) ----------
+GH_LATEST_URL = ("https://api.github.com/repos/nazgregory/"
+                 "ImmediatelyLaw/releases/latest")
+# 설치 파일을 내려받아도 되는 공식 호스트만 허용(리디렉트도 검증).
+UPDATE_HOSTS = {"api.github.com", "github.com", "codeload.github.com",
+                "objects.githubusercontent.com",
+                "release-assets.githubusercontent.com"}
+MAX_ZIP_BYTES = 300 * 1024 * 1024   # 설치 zip 상한(실측 ~62MB)
+
+
+def _ver_tuple(s: str):
+    core = (s or "").strip().lstrip("vV").split("-")[0]
+    return tuple(int(x) if x.isdigit() else 0 for x in core.split("."))
+
+
+def _host_ok(url: str) -> bool:
+    from urllib.parse import urlparse
+    u = urlparse(url)
+    return u.scheme == "https" and (u.hostname or "") in UPDATE_HOSTS
+
+
+class AppUpdateWorker(QThread):
+    """GitHub Releases 최신 릴리스 확인."""
+    found = Signal(dict)     # {version, url, size, page}
+    latest = Signal()
+    failed = Signal(str)
+
+    def __init__(self, cur_ver: str, offline=False, parent=None):
+        super().__init__(parent)
+        self.cur_ver, self.offline = cur_ver, offline
+
+    def run(self):
+        try:
+            r = requests.get(GH_LATEST_URL, timeout=15,
+                             headers={"User-Agent": "immediatelylaw-updater"})
+            r.raise_for_status()
+            j = r.json()
+            tag = (j.get("tag_name") or "").strip()
+            if _ver_tuple(tag) <= _ver_tuple(self.cur_ver):
+                self.latest.emit()
+                return
+            want = ("ImmediatelyLaw-offline.zip" if self.offline
+                    else "ImmediatelyLaw-online.zip")
+            assets = {a.get("name"): a for a in j.get("assets", [])}
+            a = assets.get(want) or assets.get("ImmediatelyLaw-online.zip")
+            url = (a or {}).get("browser_download_url", "")
+            if not a or not _host_ok(url):
+                self.failed.emit("새 릴리스에서 설치 파일을 찾지 못했습니다.")
+                return
+            self.found.emit({
+                "version": tag.lstrip("vV"), "url": url,
+                "size": int(a.get("size") or 0),
+                "page": j.get("html_url", "")})
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class AppDownloadWorker(QThread):
+    """동의한 뒤 설치 zip을 내려받아 안전 검사와 함께 풀어둔다."""
+    progress = Signal(str, int)
+    ready = Signal(str)      # 압출 푼 ImmediatelyLaw 폴더 경로
+    failed = Signal(str)
+
+    def __init__(self, info: dict, parent=None):
+        super().__init__(parent)
+        self.info, self.cancel = info, False
+
+    def run(self):
+        import zipfile
+        zpath = None
+        try:
+            fd, zpath = tempfile.mkstemp(suffix=".zip",
+                                         prefix="immediatelylaw-")
+            got = total = 0
+            with os.fdopen(fd, "wb") as f:
+                with requests.get(self.info["url"], stream=True, timeout=60,
+                                  headers={"User-Agent":
+                                           "immediatelylaw-updater"}) as r:
+                    r.raise_for_status()
+                    if not _host_ok(r.url):
+                        raise IOError("리디렉트 대상이 신뢰할 수 없는 주소입니다.")
+                    total = int(r.headers.get("content-length")
+                                or self.info.get("size") or 0)
+                    for chunk in r.iter_content(1 << 16):
+                        if self.cancel:
+                            raise IOError("사용자가 취소했습니다.")
+                        got += len(chunk)
+                        if got > MAX_ZIP_BYTES:
+                            raise IOError("설치 파일이 허용 크기를 넘습니다.")
+                        pct = int(got * 100 / total) if total else -1
+                        self.progress.emit(
+                            f"v{self.info['version']} 받는 중… "
+                            f"{got/1048576:.0f}/"
+                            f"{(total or got)/1048576:.0f}MB", pct)
+            out = tempfile.mkdtemp(prefix="immediatelylaw-update-")
+            with zipfile.ZipFile(zpath) as z:
+                for n in z.namelist():
+                    nn = n.replace("\\", "/")
+                    if nn.startswith("/") or ".." in nn.split("/"):
+                        raise IOError("설치 압축에 의심스러운 경로가 있습니다.")
+                if "ImmediatelyLaw/ImmediatelyLaw.exe" not in z.namelist():
+                    raise IOError("설치 압축의 구조가 예상과 다릅니다.")
+                z.extractall(out)
+            self.ready.emit(os.path.join(out, "ImmediatelyLaw"))
+        except Exception as e:
+            self.failed.emit(str(e))
+        finally:
+            if zpath and os.path.exists(zpath):
+                try:
+                    os.remove(zpath)
+                except OSError:
+                    pass
