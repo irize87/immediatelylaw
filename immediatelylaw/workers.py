@@ -25,16 +25,41 @@ def bundled_snapshot():
     return sorted(cands)[-1] if cands else None
 
 
-def install_xz(xz_path):
-    """xz 스냅샷을 풀어 새 DB 파일 경로를 반환(적용은 reload_from_file)."""
+MAX_XZ_BYTES = 200 * 1024 * 1024   # 압축 스냅샷 상한(현재 실측 ~21MB)
+MAX_DB_BYTES = 400 * 1024 * 1024   # 해제 후 DB 상한(현재 실측 ~110MB)
+
+
+def _https(url: str) -> str:
+    """데이터를 로컬에 반영하는 받기는 https만 허용(평문 전달·다운그레이드 방지)."""
+    if not (url or "").lower().startswith("https://"):
+        raise IOError("https 주소만 허용됩니다: " + (url or "")[:80])
+    return url
+
+
+def _inflate(xz_path):
+    """xz 해제. 용량 상한을 넘어설 수 있는 이상 파일은 파기를 중단한다."""
     new_db = DB_PATH + ".new"
-    with lzma.open(xz_path, "rb") as fin, open(new_db, "wb") as fout:
-        while True:
-            b = fin.read(1 << 20)
-            if not b:
-                break
-            fout.write(b)
+    total = 0
+    try:
+        with lzma.open(xz_path, "rb") as fin, open(new_db, "wb") as fout:
+            while True:
+                b = fin.read(1 << 20)
+                if not b:
+                    break
+                total += len(b)
+                if total > MAX_DB_BYTES:
+                    raise IOError("데이터 해제 용량이 상한을 넘어 파기를 중단했습니다.")
+                fout.write(b)
+    except Exception:
+        if os.path.exists(new_db):
+            os.remove(new_db)
+        raise
     return new_db
+
+
+def install_xz(xz_path):
+    """오프라인 동봉(또는 내려받은) xz 스냅샷을 풀어 새 DB 파일 경로를 반환."""
+    return _inflate(xz_path)
 
 
 class ResolveWorker(QThread):
@@ -100,12 +125,15 @@ class UpdaterWorker(QThread):
             self.done.emit(False, "데이터 소스(URL)가 설정되지 않았습니다. "
                                   "설정 › 데이터에서 배포 주소를 입력하세요.")
             return
+        try:
+            _https(self.base_url)
+        except IOError as e:
+            self.done.emit(False, str(e))
+            return
         stats = self.db.stats()
         self.progress.emit("버전 정보 확인 중…", -1)
         manifest = self._get(f"{self.base_url}/manifest.json").json()
-        snap = manifest.get("snapshot", {})
-        url = snap.get("url") or f"{self.base_url}/{snap.get('file','')}"
-        if not snap.get("file"):
+        if not manifest.get("snapshot", {}).get("file"):
             self.done.emit(False, "manifest에 스냅샷 정보가 없습니다.")
             return
 
@@ -141,9 +169,13 @@ class UpdaterWorker(QThread):
             f = d["file"]
             try:
                 self.progress.emit(f"개정 반영 {f} …", -1)
-                r = requests.get(d.get("url") or f"{self.base_url}/{f}",
+                r = requests.get(_https(d.get("url") or f"{self.base_url}/{f}"),
                                  timeout=60)
                 r.raise_for_status()
+                if d.get("sha256") and (
+                        hashlib.sha256(r.content).hexdigest()
+                        != d["sha256"]):
+                    return -1          # 무결성 실패 → 전체 스냅샷으로 전환
                 import json
                 payload = json.loads(lzma.decompress(r.content).decode("utf-8"))
                 from .db import norm_name
@@ -165,8 +197,12 @@ class UpdaterWorker(QThread):
 
     def _download_snapshot(self, manifest):
         snap = manifest["snapshot"]
-        url = snap.get("url") or f"{self.base_url}/{snap['file']}"
+        url = _https(snap.get("url") or f"{self.base_url}/{snap['file']}")
         size = int(snap.get("size", 0) or 0)
+        if size and size > MAX_XZ_BYTES:
+            raise IOError("스냅샷 크기가 비정상적으로 커 파기를 중단했습니다.")
+        if not snap.get("sha256"):
+            raise IOError("manifest에 sha256이 없어 무결성을 검증할 수 없습니다.")
         self.progress.emit(f"법령 데이터 받는 중… ({size/1048576:.0f}MB)", 0)
         fd, tmp_xz = tempfile.mkstemp(suffix=".db.xz", dir=os.path.dirname(DB_PATH))
         got = 0
@@ -178,22 +214,17 @@ class UpdaterWorker(QThread):
                     f.write(chunk)
                     h.update(chunk)
                     got += len(chunk)
+                    if got > MAX_XZ_BYTES:
+                        raise IOError("다운로드 용량이 상한을 넘어 파기를 중단했습니다.")
                     if size:
                         self.progress.emit(
                             f"법령 데이터 받는 중… "
                             f"{got/1048576:.0f}/{size/1048576:.0f}MB",
                             min(99, int(got * 100 / size)))
-            if snap.get("sha256") and h.hexdigest() != snap["sha256"]:
+            if h.hexdigest() != snap["sha256"]:
                 raise IOError("sha256 불일치(다운로드 손상)")
             self.progress.emit("데이터 푸는 중…", 99)
-            new_db = DB_PATH + ".new"
-            with lzma.open(tmp_xz, "rb") as fin, open(new_db, "wb") as fout:
-                while True:
-                    b = fin.read(1 << 20)
-                    if not b:
-                        break
-                    fout.write(b)
-            return new_db
+            return _inflate(tmp_xz)
         finally:
             if os.path.exists(tmp_xz):
                 os.remove(tmp_xz)

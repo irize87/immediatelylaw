@@ -107,7 +107,8 @@ GitHub **[Releases](../../releases)** 에서 zip을 받아 압축을 풉니다.
 
 앱은 데이터 저장소 [immediatelylaw-data](https://github.com/nazgregory/immediatelylaw-data)
 `dist` 브랜치를 주기적으로(8시간 + 시작 시) 확인합니다. 새 버전이 있으면
-새 스냅샷을 다운로드해 SHA-256 검증 후 교체합니다. 모든 최신화는 자동화 되어 있습니다.
+새 스냅샷을 다운로드해 SHA-256 검증 후 교체합니다. 다운로드는 HTTPS로만
+이루어지며 검증 실패 시 적용되지 않습니다. 모든 최신화는 자동화 되어 있습니다.
 
 데이터 저장소를 직접 운영(매일 최신화)하는 방법은
 [데이터 저장소 운영 가이드](docs/DATA_REPO.md)를 참고하세요.

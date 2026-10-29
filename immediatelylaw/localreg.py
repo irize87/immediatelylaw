@@ -66,6 +66,8 @@ def _read_zip_xml(raw: bytes) -> str:
                           or re.match(r"section\d*\.xml$", n))
         if sections:                                   # hwpx (hp:p / hp:t)
             for n in sections:
+                if z.getinfo(n).file_size > 50_000_000:
+                    raise ValueError("본문 XML이 비정상적으로 큽니다.")
                 root = ET.fromstring(z.read(n))
                 for el in root.iter():
                     if _local(el.tag) == "p":
@@ -75,6 +77,8 @@ def _read_zip_xml(raw: bytes) -> str:
                             lines.append(t)
             return "\n".join(lines)
         if "word/document.xml" in names:               # docx
+            if z.getinfo("word/document.xml").file_size > 50_000_000:
+                raise ValueError("본문 XML이 비정상적으로 큽니다.")
             root = ET.fromstring(z.read("word/document.xml"))
             for p in root.iter():
                 if _local(p.tag) == "p":

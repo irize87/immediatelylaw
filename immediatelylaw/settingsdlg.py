@@ -504,7 +504,14 @@ class SettingsDialog(QDialog):
         self.cfg["verify_enabled"] = self.chk_verify.isChecked()
         self.cfg["hotkey_enabled"] = self.chk_hotkey.isChecked()
         self.cfg["clipboard_paused"] = self.chk_pause.isChecked()
-        self.cfg["data_base_url"] = self.ed_url.text().strip()
+        url = self.ed_url.text().strip().rstrip("/")
+        if url and not url.lower().startswith("https://"):
+            QMessageBox.warning(
+                self, "즉시로 설정",
+                "데이터 배포 주소는 https만 사용할 수 있습니다.\n"
+                "입력한 주소는 저장되지 않았습니다.")
+        else:
+            self.cfg["data_base_url"] = url
         # 의도된 시작 실행 상태를 설정에 기록(부팅 시 자동 등록 판단용)
         self.cfg["autostart"] = self.chk_auto.isChecked()
         self.cfg.save()
