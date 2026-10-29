@@ -3,9 +3,9 @@
 #   crontab:  CRON_TZ=Asia/Seoul
 #             0 3 * * * $HOME/ImmediatelyLaw/tools/daily_update_server.sh
 # 필요 조건:
-#   - ~/ImmediatelyLaw/.env: export IMMEDIATELYLAW_OC=<OC키>   (chmod 600)
-#   - GitHub 배포키: (서버에 설정한 Deploy Key 개인키) 가
-#     immediatelylaw-data 저장소에 쓰기 권한 있는 Deploy Key로 등록되어 있을 것
+#   - $APP/.env: export IMMEDIATELYLAW_OC=<OC키>   (chmod 600)
+#   - immediatelylaw-data 저장소에 쓰기 권한 있는 GitHub Deploy Key가
+#     ssh-agent나 ~/.ssh/config에 설정되어 있을 것
 #   - venv: .venv (requests 설치됨)
 set -e
 APP="$HOME/ImmediatelyLaw"
@@ -13,9 +13,10 @@ REPO="git@github.com:nazgregory/immediatelylaw-data.git"
 cd "$APP"
 
 # OC 키 (env 파일 우선; 없으면 설정 파일의 저장 키 사용)
-if [ -f "$APP/.env" ]; then
+ENV_FILE="${IMMEDIATELYLAW_ENV:-$APP/.env}"
+if [ -f "$ENV_FILE" ]; then
     # shellcheck disable=SC1090
-    . "$APP/.env"
+    . "$ENV_FILE"
     export IMMEDIATELYLAW_OC
 fi
 

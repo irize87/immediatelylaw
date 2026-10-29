@@ -15,6 +15,9 @@ data/*.db-shm
 data/dist/
 data/_distrepo/
 
+# 서버 시크릿(env) — 절대 커밋 금지
+.env
+
 # regulations: 폴더는 두되 파일은 제외, 샘플(hwpx)과 안내만 커밋
 data/regulations/*
 !data/regulations/*.hwpx
