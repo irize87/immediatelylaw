@@ -317,14 +317,19 @@ class AppDownloadWorker(QThread):
                     for chunk in r.iter_content(1 << 16):
                         if self.cancel:
                             raise IOError("사용자가 취소했습니다.")
+                        f.write(chunk)
                         got += len(chunk)
                         if got > MAX_ZIP_BYTES:
                             raise IOError("설치 파일이 허용 크기를 넘습니다.")
-                        pct = int(got * 100 / total) if total else -1
+                        pct = min(99, int(got * 100 / total)) if total else -1
                         self.progress.emit(
                             f"v{self.info['version']} 받는 중… "
                             f"{got/1048576:.0f}/"
                             f"{(total or got)/1048576:.0f}MB", pct)
+            if total and got != total:
+                raise IOError(
+                    f"다운로드 중 연결이 끊겼습니다 "
+                    f"({got/1048576:.0f}/{total/1048576:.0f}MB).")
             out = tempfile.mkdtemp(prefix="immediatelylaw-update-")
             with zipfile.ZipFile(zpath) as z:
                 for n in z.namelist():

@@ -332,6 +332,9 @@ class ImmediatelyLaw(QObject):
         ver = info["version"]
         if auto and ver == self.cfg.get("update_skip_ver", ""):
             return
+        if getattr(self, "_offer_open", False):
+            return          # 이미 제안 대화상자가 열려 있다
+        self._offer_open = True
         box = QMessageBox(QMessageBox.Information, APP_TITLE,
                           f"새 버전 v{ver}이(가) 나왔습니다 "
                           f"(현재 v{__version__}).\n\n"
@@ -352,7 +355,10 @@ class ImmediatelyLaw(QObject):
         b_no.clicked.connect(lambda: choice.append("no"))
         if b_skip is not None:
             b_skip.clicked.connect(lambda: choice.append("skip"))
-        box.exec()
+        try:
+            box.exec()
+        finally:
+            self._offer_open = False
         sel = choice[0] if choice else "no"
         if sel == "yes":
             self._download_update(info)
