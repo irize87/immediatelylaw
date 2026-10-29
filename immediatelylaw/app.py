@@ -12,7 +12,7 @@ from PySide6.QtGui import (QBrush, QColor, QCursor, QFont, QIcon,
 from PySide6.QtWidgets import (QApplication, QMenu, QMessageBox,
                                QProgressDialog, QSystemTrayIcon, QWidget)
 
-from . import __version__, APP_TITLE, localreg, resolver
+from . import __version__, APP_TITLE, localreg, resolver, theme
 from .config import get_config
 from .db import get_db
 from .lawapi import LawApi
@@ -75,6 +75,7 @@ class ImmediatelyLaw(QObject):
         self.overlay = OverlayCard(self.cfg)
         self.overlay.copy_requested.connect(self._copy_out)
         self.overlay.verify_requested.connect(self._start_verify)
+        app.setStyleSheet(theme.app_qss(self.cfg))   # 시스템/라이트/다크
 
         self.watcher = ClipboardWatcher(app.clipboard(), self.cfg)
         self.watcher.citation.connect(self._on_citation)
@@ -150,6 +151,13 @@ class ImmediatelyLaw(QObject):
         else:
             self._upd_timer.start()
             self._update(auto=True)
+
+    def _apply_theme(self):
+        """테마(시스템/라이트/다크) 변경 반영: 전역 스타일 + 카드 + 조회창."""
+        self.app.setStyleSheet(theme.app_qss(self.cfg))
+        self.overlay._refresh_palette()
+        if self.search is not None:
+            self.search._refresh_palette()
 
     def _refresh_api(self):
         key = self.cfg.get_oc_key()
@@ -295,6 +303,7 @@ class ImmediatelyLaw(QObject):
         if self.settings is None:
             self.settings = SettingsDialog(self.cfg, self.db)
             self.settings.saved.connect(self._refresh_api)
+            self.settings.saved.connect(self._apply_theme)
             self.settings.update_requested.connect(lambda: self._update(auto=False))
             self.settings.finished.connect(
                 lambda _: setattr(self, "settings", None))

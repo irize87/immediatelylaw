@@ -8,8 +8,8 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QListWidgetItem, QTextBrowser,
                                QAbstractItemView, QVBoxLayout, QWidget)
 
-from . import refparse, resolver
-from .overlay import FooterBar, article_html, BADGE_STYLE
+from . import refparse, resolver, theme
+from .overlay import FooterBar, article_html
 
 
 class SearchWindow(QWidget):
@@ -63,6 +63,19 @@ class SearchWindow(QWidget):
         self.footer.set_state("법령명과 조번호를 입력하세요. "
                               "Enter = 조회, 목록 클릭 = 조문 열기")
         root.addWidget(self.footer)
+
+        self._badge = ("neutral", "")
+        self._refresh_palette()
+
+    # ---------- 테마 ----------
+    def _refresh_palette(self):
+        p = theme.palette(self.cfg)
+        self.tv.setStyleSheet(
+            f"QTextBrowser{{border:1px solid {p['border']};"
+            f"border-radius:6px;background:{p['panel']};}}")
+        self.footer.apply_palette(p)
+        self._render()
+        self._apply_badge()
 
         QShortcut(QKeySequence("Ctrl+F"), self,
                   activated=lambda: self.ed.setFocus())
@@ -214,11 +227,13 @@ class SearchWindow(QWidget):
         except (TypeError, ValueError):
             pt = 11
         pt = max(8, min(20, pt))
+        p = theme.palette(self.cfg)
         head = self._history_label(res).replace("  [자치]", " [자치]")
         self.tv.setHtml(
             f'<div style="font-family:\'Malgun Gothic\';font-size:{pt}pt;'
-            f'font-weight:bold;color:#20242b;margin:0 2px 6px 2px;">'
-            f'{html.escape(head)}</div>' + article_html(res, pt))
+            f'font-weight:bold;color:{p["fg"]};margin:0 2px 6px 2px;">'
+            f'{html.escape(head)}</div>'
+            + article_html(res, pt, p["dark"]))
 
     def _on_font(self, pt: int):
         self._render()
@@ -233,10 +248,17 @@ class SearchWindow(QWidget):
     def _on_verified(self, kind, msg):
         text = {"current": "(현행)", "check": "(확인)",
                 "offline": "(오프라인)"}.get(kind, f"({kind})")
-        self._show_badge(kind if kind in BADGE_STYLE else "neutral", text)
+        self._show_badge(kind if kind in ("current", "check") else "neutral",
+                         text)
 
     def _show_badge(self, kind, text):
-        style = BADGE_STYLE.get(kind, BADGE_STYLE["neutral"])[0]
+        self._badge = (kind, text)
+        self._apply_badge()
+
+    def _apply_badge(self):
+        kind, text = self._badge
+        p = theme.palette(self.cfg)
+        style = p.get(f"badge_{kind}") or p["badge_neutral"]
         self.lb_badge.setText(text)
         self.lb_badge.setStyleSheet(style + "padding:2px 6px;"
                                     "border-radius:4px;font-weight:bold;")

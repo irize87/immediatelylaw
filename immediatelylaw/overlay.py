@@ -9,14 +9,11 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
 
+from . import theme
+
 CIRCLED = "\u2460\u2461\u2462\u2463\u2464\u2465\u2466\u2467\u2468\u2469" \
           "\u246a\u246b\u246c\u246d\u246e\u246f\u2470\u2471\u2472\u2473"
 
-BADGE_STYLE = {
-    "current": ("color:#1a7f37;background:#e3f5e9;", ""),
-    "check":   ("color:#b45309;background:#fdf0d9;", ""),
-    "neutral": ("color:#5b6470;background:#eef0f3;", ""),
-}
 BADGE_TEXT = {
     "current": "(현행)", "check": "(확인)", "neutral": "(로컬)",
 }
@@ -41,10 +38,10 @@ class FooterBar(QWidget):
         self.lb_state.setFont(QFont("Malgun Gothic", 8))
         self.lb_state.setStyleSheet("color:#8a919c;")
         self.btn_site = self._link(
-            "<a href='https://www.law.go.kr/'>법령정보센터 ↗</a>",
+            "https://www.law.go.kr/", "법령정보센터 ↗",
             "국가법령정보센터(www.law.go.kr) 열기")
         self.btn_author = self._link(
-            "<a href='https://github.com/nazgregory'>제작자 ↗</a>",
+            "https://github.com/nazgregory", "제작자 ↗",
             "제작자 GitHub 페이지 열기")
         self.btn_copy = QPushButton("  복사  ")
         self.btn_copy.setCursor(Qt.PointingHandCursor)
@@ -61,6 +58,29 @@ class FooterBar(QWidget):
         for w in (self.btn_site, self.btn_author, self.btn_copy):
             lay.addWidget(w)
 
+    def apply_palette(self, p: dict):
+        """테마 팔레트(theme.LIGHT/DARK)를 버튼·링크·상태 문구에 적용."""
+        self.lb_state.setStyleSheet(f"color:{p['fg2']};")
+        bss = (
+            f"QPushButton{{border:1px solid {p['border']};border-radius:7px;"
+            f"background:{p['panel']};color:{p['fg']};"
+            f"font-family:'Malgun Gothic';font-size:11pt;font-weight:bold;}}"
+            f"QPushButton:hover{{background:{p['hover']};"
+            f"border-color:{p['fg2']};}}"
+            f"QPushButton:pressed{{background:{p['border']};}}")
+        self.btn_font_dec.setStyleSheet(bss)
+        self.btn_font_inc.setStyleSheet(bss)
+        self.btn_copy.setStyleSheet(
+            f"QPushButton{{border:1px solid {p['border']};"
+            f"border-radius:5px;padding:4px 10px;background:{p['panel']};"
+            f"color:{p['fg']};font-family:'Malgun Gothic';font-size:9pt;}}"
+            f"QPushButton:hover{{background:{p['hover']};"
+            f"border-color:{p['fg2']};}}"
+            f"QPushButton:pressed{{background:{p['border']};}}")
+        for lb in (self.btn_site, self.btn_author):
+            lb.setText(f"<a href='{lb.property('url')}' "
+                       f"style='color:{p['link']}'>{lb.property('label')}</a>")
+
     def set_state(self, text: str):
         self.lb_state.setText(text)
 
@@ -76,8 +96,10 @@ class FooterBar(QWidget):
         self.cfg.save()           # 사용자가 조정하면 설정에 저장되어 유지
         self.font_step.emit(pt)
 
-    def _link(self, html_text: str, tip: str) -> QLabel:
-        lb = QLabel(html_text)
+    def _link(self, url: str, label: str, tip: str) -> QLabel:
+        lb = QLabel(f"<a href='{url}'>{label}</a>")
+        lb.setProperty("url", url)
+        lb.setProperty("label", label)
         lb.setFont(QFont("Malgun Gothic", 8))
         lb.setCursor(Qt.PointingHandCursor)
         lb.setToolTip(tip)
@@ -99,8 +121,10 @@ class FooterBar(QWidget):
         return b
 
 
-def article_html(res: dict, pt: float = 11) -> str:
+def article_html(res: dict, pt: float = 11, dark: bool = False) -> str:
     """장·절 표기와 본문이 같은 폰트(맑은 고딕)·같은 크기로 렌더된다."""
+    fg = "#e8eaed" if dark else "#20242b"
+    fg2 = "#9aa3ad" if dark else "#5b6470"
     body = res.get("body", "")
     # 헤더에 이미 나오는 '제N조(제목)' 접두만 본문에서 제거
     body = re.sub(r"^\s*제\s*[0-9]+(?:의[0-9]+)?\s*조\s*[（(][^）)]*[）)]\s*",
@@ -114,10 +138,10 @@ def article_html(res: dict, pt: float = 11) -> str:
     style = ("font-family:'Malgun Gothic';font-size:%gpt;line-height:1.62;"
              % pt)
     inner = "".join(
-        f'<p style="margin:4px 0 4px 0;{style}color:#20242b;">'
+        f'<p style="margin:4px 0 4px 0;{style}color:{fg};">'
         f'{html.escape(p)}</p>' for p in paras)
     chap = res.get("chap")
-    chap_html = (f'<div style="{style}color:#5b6470;margin-bottom:4px;">'
+    chap_html = (f'<div style="{style}color:{fg2};margin-bottom:4px;">'
                  f'{html.escape(chap)}</div>') if chap else ""
     # 주의: style 특성 안에 이중따옴표 금지(파싱 깨짐). 폰트도 강제로 지정.
     return chap_html + inner
@@ -191,6 +215,36 @@ class OverlayCard(QWidget):
         self.lb_state = self.footer.lb_state   # Esc 안내/복사 문구용 별칭
         root.addWidget(self.footer)
 
+        self._badge = ("neutral", "")
+        self._refresh_palette()
+
+    # ---------- 테마 ----------
+    def _refresh_palette(self):
+        p = theme.palette(self.cfg)
+        self.setStyleSheet(
+            f"#cardRoot{{background:{p['bg']};"
+            f"border:1px solid {p['border']};}}")
+        self.lb_title.setStyleSheet(f"color:{p['fg']};")
+        self.btn_close.setStyleSheet(
+            f"QPushButton{{border:none;border-radius:5px;"
+            f"background:transparent;color:{p['fg2']};"
+            f"font-family:'Malgun Gothic';font-size:10pt;}}"
+            f"QPushButton:hover{{background:{p['hover']};color:{p['fg']};}}"
+            f"QPushButton:pressed{{background:{p['border']};}}")
+        self.footer.apply_palette(p)
+        if self._current is not None:
+            self.tv.setHtml(article_html(self._current, self._pt(),
+                                         p["dark"]))
+        self._apply_badge()
+
+    def _apply_badge(self):
+        kind, text = self._badge
+        p = theme.palette(self.cfg)
+        style = p.get(f"badge_{kind}") or p["badge_neutral"]
+        self.lb_badge.setText(text)
+        self.lb_badge.setStyleSheet(style + "padding:2px 6px;"
+                                    "border-radius:4px;")
+
     @staticmethod
     def _screen_h():
         from PySide6.QtGui import QGuiApplication
@@ -214,7 +268,8 @@ class OverlayCard(QWidget):
             self.set_badge("check", "(시행예정)")
         else:
             self.set_badge("neutral", "(조회)")
-        self.tv.setHtml(article_html(res, self._pt()))
+        self.tv.setHtml(article_html(res, self._pt(),
+                                     theme.palette(self.cfg)["dark"]))
         self.lb_state.setText(note)
         self._place_and_show()
         if res.get("source") != "local-reg":
@@ -230,7 +285,8 @@ class OverlayCard(QWidget):
     def _change_font(self, pt: int):
         """FooterBar(font_step) 수신: 현재 결과를 새 크기로 다시 렌더."""
         if self._current:
-            self.tv.setHtml(article_html(self._current, pt))
+            self.tv.setHtml(article_html(self._current, pt,
+                                         theme.palette(self.cfg)["dark"]))
         self._reflow()
 
     def _reflow(self):
@@ -244,9 +300,8 @@ class OverlayCard(QWidget):
             self.move(self.x(), bottom - h)
 
     def set_badge(self, kind: str, text: str = ""):
-        style = BADGE_STYLE.get(kind, BADGE_STYLE["neutral"])[0]
-        self.lb_badge.setText(text or BADGE_TEXT.get(kind, ""))
-        self.lb_badge.setStyleSheet(style + "padding:2px 6px;border-radius:4px;")
+        self._badge = (kind, text or BADGE_TEXT.get(kind, ""))
+        self._apply_badge()
 
     def set_state(self, text: str):
         self.lb_state.setText(text)

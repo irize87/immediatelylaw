@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
-"""설정 창: 데이터 / API 키(발급 안내 + DPAPI 저장) / 오버레이 / 일반."""
+"""설정 창: 데이터 / 자치법규 / API 키 / 오버레이 / 일반 / 정보."""
 import os
+import shutil
 import sys
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QDesktopServices, QFont
 from PySide6.QtCore import QUrl
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFormLayout,
-                               QHBoxLayout, QInputDialog, QLabel,
-                               QLineEdit, QMessageBox, QPushButton, QSpinBox,
-                               QTabWidget, QTextEdit, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
+                               QFormLayout, QHBoxLayout, QHeaderView,
+                               QInputDialog, QLabel, QLineEdit, QMessageBox,
+                               QPushButton, QSpinBox, QTabWidget, QTableWidget,
+                               QTableWidgetItem, QTextEdit, QVBoxLayout,
+                               QWidget)
 
-from . import __version__
+from . import __version__, localreg, theme
+from .db import norm_name
 
 OPEN_LAW_URL = "https://open.law.go.kr/LSO/main.do"
 
@@ -102,6 +106,7 @@ class SettingsDialog(QDialog):
         self.tabs = QTabWidget()
         root.addWidget(self.tabs)
         self.tabs.addTab(self._tab_data(), "데이터")
+        self.tabs.addTab(self._tab_local(), "자치법규")
         self.tabs.addTab(self._tab_api(), "API 키")
         self.tabs.addTab(self._tab_overlay(), "오버레이")
         self.tabs.addTab(self._tab_general(), "일반")
@@ -138,6 +143,176 @@ class SettingsDialog(QDialog):
     def _req_update(self):
         self._save_fields()
         self.update_requested.emit()
+
+    # ---------- 자치법규 ----------
+    LOCAL_FILTER = ("자치법규 파일 (*.hwpx *.hwp *.doc *.docx *.pdf *.rtf "
+                    "*.txt *.md;;모든 파일 (*.*)")
+
+    def _tab_local(self):
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        tip = QLabel("기관에서 사용하는 자치법규(조례·규칙·훈령 등)를 등록하면 "
+                     "국가 법령과 같은 방식으로 조문이 표시됩니다.\n"
+                     "지원: .hwpx .hwp .doc .docx .pdf .rtf .txt .md — "
+                     "regulations 폴더에 둔 파일은 시작 시 자동 등록됩니다.")
+        tip.setWordWrap(True)
+        tip.setStyleSheet("color:#6b7280;")
+        lay.addWidget(tip)
+        self.local_tbl = QTableWidget(0, 3)
+        self.local_tbl.setHorizontalHeaderLabels(["법령명", "조문", "파일"])
+        self.local_tbl.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Stretch)
+        self.local_tbl.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.Stretch)
+        self.local_tbl.setColumnWidth(1, 52)
+        self.local_tbl.setSelectionBehavior(QTableWidget.SelectRows)
+        self.local_tbl.setSelectionMode(QTableWidget.SingleSelection)
+        self.local_tbl.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.local_tbl.setAlternatingRowColors(True)
+        lay.addWidget(self.local_tbl, 1)
+        row = QHBoxLayout()
+        b_add = QPushButton("파일 추가…")
+        b_add.clicked.connect(self._local_add)
+        b_upd = QPushButton("제·개정 반영…")
+        b_upd.clicked.connect(self._local_update)
+        b_del = QPushButton("선택 삭제")
+        b_del.clicked.connect(self._local_delete)
+        for b in (b_add, b_upd, b_del):
+            row.addWidget(b)
+        lay.addLayout(row)
+        self.lb_local = QLabel("")
+        self.lb_local.setStyleSheet("color:#6b7280;")
+        self.lb_local.setWordWrap(True)
+        lay.addWidget(self.lb_local)
+        self._local_refresh()
+        return w
+
+    def _local_refresh(self):
+        rows = self.db.conn.execute(
+            "SELECT ll.id, ll.name, ll.source, "
+            "(SELECT COUNT(*) FROM local_article la WHERE la.lid=ll.id) n "
+            "FROM local_law ll ORDER BY ll.name").fetchall()
+        t = self.local_tbl
+        t.setRowCount(len(rows))
+        for i, r in enumerate(rows):
+            src = r["source"] or ""
+            it0 = QTableWidgetItem(r["name"])
+            it0.setData(Qt.UserRole, r["id"])
+            it0.setData(Qt.UserRole + 1, src)
+            it0.setData(Qt.UserRole + 2, r["name"])
+            it1 = QTableWidgetItem(str(r["n"]))
+            it1.setTextAlignment(Qt.AlignCenter)
+            t.setItem(i, 0, it0)
+            t.setItem(i, 1, it1)
+            t.setItem(i, 2, QTableWidgetItem(os.path.basename(src)))
+        if not rows:
+            self.lb_local.setText("등록된 자치법규가 없습니다. [파일 추가…]로 "
+                                  "추가하세요.")
+        else:
+            self.lb_local.setText(f"총 {len(rows)}건 등록됨.")
+
+    def _local_selected(self):
+        r = self.local_tbl.currentRow()
+        if r < 0 or self.local_tbl.item(r, 0) is None:
+            QMessageBox.information(self, "즉시로", "목록에서 자치법규를 "
+                                                "선택하세요.")
+            return None
+        it = self.local_tbl.item(r, 0)
+        return (it.data(Qt.UserRole), it.data(Qt.UserRole + 1),
+                it.data(Qt.UserRole + 2))
+
+    def _local_add(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self, "자치법규 파일 추가", localreg.REG_DIR, self.LOCAL_FILTER)
+        if not files:
+            return
+        os.makedirs(localreg.REG_DIR, exist_ok=True)
+        done, errs = [], []
+        for f in files:
+            dest = os.path.join(localreg.REG_DIR, os.path.basename(f))
+            if os.path.abspath(f) != os.path.abspath(dest):
+                if os.path.exists(dest):
+                    resp = QMessageBox.question(
+                        self, "동일 파일 존재",
+                        f"{os.path.basename(dest)} 이(가) 이미 있습니다.\n"
+                        "덮어쓰고 다시 등록할까요?",
+                        QMessageBox.Yes | QMessageBox.No)
+                    if resp != QMessageBox.Yes:
+                        continue
+                try:
+                    shutil.copy2(f, dest)
+                except OSError as e:
+                    errs.append(f"{os.path.basename(f)}: {e}")
+                    continue
+            try:
+                name, n = localreg.import_file(self.db, dest)
+                done.append(f"{name} ({n}조)")
+            except Exception as e:
+                errs.append(f"{os.path.basename(f)}: {e}")
+        self._local_refresh()
+        self.saved.emit()
+        if done and not errs:
+            QMessageBox.information(self, "즉시로",
+                                    "등록 완료\n" + "\n".join(done))
+        else:
+            QMessageBox.warning(
+                self, "즉시로",
+                ("\n".join(f"{n} 등록됨" for n in done) + "\n\n"
+                 if done else "") + "실패:\n" + "\n".join(errs))
+
+    def _local_update(self):
+        sel = self._local_selected()
+        if not sel:
+            return
+        lid, source, name = sel
+        f, _ = QFileDialog.getOpenFileName(
+            self, f"{name} — 제·개정된 새 파일 선택",
+            os.path.dirname(source) or localreg.REG_DIR, self.LOCAL_FILTER)
+        if not f:
+            return
+        dest = source or os.path.join(localreg.REG_DIR, os.path.basename(f))
+        try:
+            shutil.copy2(f, dest)
+        except OSError as e:
+            QMessageBox.warning(self, "즉시로", f"복사 실패: {e}")
+            return
+        try:
+            new_name, n = localreg.import_file(self.db, dest)
+        except Exception as e:
+            QMessageBox.warning(self, "즉시로", f"등록 실패: {e}")
+            return
+        self._local_refresh()
+        self.saved.emit()
+        QMessageBox.information(
+            self, "즉시로", f"{new_name} — 새 파일로 다시 등록했습니다"
+                            f"({n}조).")
+
+    def _local_delete(self):
+        sel = self._local_selected()
+        if not sel:
+            return
+        lid, source, name = sel
+        resp = QMessageBox.question(
+            self, "삭제",
+            f"{name}을(를) 삭제할까요?\n"
+            "등록 데이터와 regulations 폴더의 원본 파일이 함께 삭제됩니다.",
+            QMessageBox.Yes | QMessageBox.No)
+        if resp != QMessageBox.Yes:
+            return
+        with self.db._lock:
+            self.db.conn.execute("DELETE FROM local_article WHERE lid=?",
+                                 (lid,))
+            self.db.conn.execute("DELETE FROM local_law WHERE id=?", (lid,))
+            self.db.conn.execute("DELETE FROM alias WHERE key=?",
+                                 (norm_name(name),))
+            self.db.conn.commit()
+        if source and os.path.isfile(source):
+            try:
+                os.remove(source)
+            except OSError:
+                pass
+        self._local_refresh()
+        self.saved.emit()
 
     # ---------- API ----------
     def _tab_api(self):
@@ -233,6 +408,13 @@ class SettingsDialog(QDialog):
         self.sp_font.setSuffix(" pt")
         self.chk_verify = QCheckBox("표시 후 현행 여부 자동 확인")
         self.chk_verify.setChecked(bool(self.cfg["verify_enabled"]))
+        self.cb_theme = QComboBox()
+        for k, label in (("system", "시스템 모드"), ("light", "라이트 모드"),
+                         ("dark", "다크 모드")):
+            self.cb_theme.addItem(label, k)
+        i = self.cb_theme.findData(str(self.cfg.get("theme", "system")))
+        self.cb_theme.setCurrentIndex(max(0, i))
+        form.addRow("모드", self.cb_theme)
         form.addRow("카드 폭", self.sp_w)
         form.addRow("위 위치", self.cb_corner)
         form.addRow("글자 크기 (장·절·본문)", self.sp_font)
@@ -258,33 +440,48 @@ class SettingsDialog(QDialog):
 
     # ---------- 정보 ----------
     def _tab_info(self):
+        p = theme.palette(self.cfg)
+        link = p["fg"]          # 링크는 본문과 같은 색(검정)으로 표기
         w = QWidget()
         lay = QVBoxLayout(w)
-        title = QLabel(
-            f"<div style='font-size:13pt;font-weight:bold;'>즉시로 "
-            f"(ImmediatelyLaw)&nbsp;<span style='color:#6b7280;"
-            f"font-weight:normal;'>v{__version__}</span></div>"
-            "<span style='color:#374151;'>복사(Ctrl+C)만 하면 조문이 화면 "
-            "오른쪽 아래에 — 법령 조문을 가장 빠르고 간편하게</span>")
-        title.setTextFormat(Qt.RichText)
-        title.setWordWrap(True)
-        lay.addWidget(title)
+        row = QHBoxLayout()
+        t1 = QLabel("즉시로 (Immediately Law)")
+        t1.setFont(QFont("Malgun Gothic", 12, QFont.Bold))
+        t2 = QLabel(f"v{__version__}")
+        t2.setStyleSheet("color:#6b7280;")
+        row.addWidget(t1)
+        row.addStretch(1)
+        row.addWidget(t2)
+        lay.addLayout(row)
+        lay.addSpacing(26)
+        msg = QLabel("복사(Ctrl + C)만 하면 조문이 화면 오른쪽 아래에 "
+                     "나옵니다.")
+        msg.setFont(QFont("Malgun Gothic", 10))
+        msg.setWordWrap(True)
+        lay.addWidget(msg)
+        lay.addSpacing(26)
+
+        def a(url: str, text: str) -> str:
+            return (f"<a href='{url}' style='color:{link};"
+                    f"text-decoration:underline'>{text}</a>")
+
+        td = "color:#6b7280;padding-right:12px;"
         info = QLabel(
             "<table cellspacing='0' cellpadding='2'>"
-            "<tr><td style='color:#6b7280;padding-right:12px;'>제작자</td>"
-            "<td>홍성민(서초구청)</td></tr>"
-            "<tr><td style='color:#6b7280;'>연락처</td>"
-            "<td><a href='mailto:nazgregory@gmail.com'>nazgregory@gmail.com"
-            "</a><br>"
-            "<a href='mailto:irize@seocho.go.kr'>irize@seocho.go.kr</a><br>"
-            "02-2155-6089</td></tr>"
-            "<tr><td style='color:#6b7280;'>소스 코드</td>"
-            "<td><a href='https://github.com/nazgregory/ImmediatelyLaw'>"
-            "github.com/nazgregory/ImmediatelyLaw</a> (MIT)</td></tr>"
-            "<tr><td style='color:#6b7280;'>법령 데이터</td>"
-            "<td><a href='https://github.com/nazgregory/immediatelylaw-data'>"
-            "immediatelylaw-data</a> — 국가법령정보센터(법제처) 개방 데이터</td>"
-            "</tr></table>")
+            f"<tr><td style='{td}'>제작자</td><td>홍성민(서초구청)</td></tr>"
+            f"<tr><td style='{td}'>연락처</td>"
+            "<td>" + a("mailto:nazgregory@gmail.com", "nazgregory@gmail.com")
+            + "<br>"
+            + a("mailto:irize@seocho.go.kr", "irize@seocho.go.kr")
+            + "<br>02-2155-6089</td></tr>"
+            f"<tr><td style='{td}'>소스 코드</td><td>"
+            + a("https://github.com/nazgregory/ImmediatelyLaw",
+                "github.com/nazgregory/ImmediatelyLaw") + " (MIT)</td></tr>"
+            f"<tr><td style='{td}'>법령 데이터</td><td>"
+            + a("https://github.com/nazgregory/immediatelylaw-data",
+                "immediatelylaw-data")
+            + " — 국가법령정보센터(법제처) 개방 데이터</td></tr>"
+            "</table>")
         info.setTextFormat(Qt.RichText)
         info.setOpenExternalLinks(True)
         info.setTextInteractionFlags(Qt.TextBrowserInteraction)
@@ -303,6 +500,7 @@ class SettingsDialog(QDialog):
         self.cfg["overlay_corner"] = self.cb_corner.currentData()
         self.cfg["auto_hide_sec"] = self.sp_hide.value()
         self.cfg["font_pt"] = self.sp_font.value()
+        self.cfg["theme"] = self.cb_theme.currentData()
         self.cfg["verify_enabled"] = self.chk_verify.isChecked()
         self.cfg["hotkey_enabled"] = self.chk_hotkey.isChecked()
         self.cfg["clipboard_paused"] = self.chk_pause.isChecked()

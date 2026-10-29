@@ -34,6 +34,7 @@ CONFIG_PATH = os.path.join(_appdata_dir(), "config.json")
 
 DEFAULTS = {
     "overlay_width": 470,          # 오버레이 카드 폭(px)
+    "theme": "light",              # 시스템(system)/라이트(light)/다크(dark)
     "font_pt": 11,                 # 장·절 표기와 조문 본문 글자크기(pt)
     "overlay_corner": "bottom_right", # top_right/top_left/bottom_right/bottom_left
     "auto_hide_sec": 30,           # 0 = 자동 숨김 없음(고정)
@@ -116,6 +117,9 @@ class Config:
 
     def __getitem__(self, k):
         return self._d[k]
+
+    def get(self, k, default=None):
+        return self._d.get(k, default)
 
     def __setitem__(self, k, v):
         self._d[k] = v

@@ -37,6 +37,11 @@ python -m tools.push_dist --repo https://github.com/nazgregory/immediatelylaw-da
 
 ## 매일 자동 실행 (권장) — Windows 작업 스케줄러
 
+> 이 저장소 발행 PC에는 이미 등록되어 있습니다:
+> 작업 이름 `ImmediatelyLaw-DailyUpdate`, 매일 **03:00**
+> (`StartWhenAvailable` — 그 시각에 꺼져 있으면 다음 로그인 때 수행).
+> OC 키는 설정 앱에 저장해 두면(또는 `IMMEDIATELYLAW_OC` 환경변수) 스크립트에서 생략 가능.
+
 PowerShell 스크립트를 만들고(`tools/daily_update.ps1` 예):
 
 ```powershell
@@ -53,6 +58,17 @@ python -m tools.push_dist --repo https://github.com/nazgregory/immediatelylaw-da
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\path\to\ImmediatelyLaw\tools\daily_update.ps1
+```
+
+한 번의 명령으로 등록하려면(관리자 불필요 — 로그인 상태 실행):
+
+```powershell
+$a = New-ScheduledTaskAction -Execute 'powershell.exe' `
+    -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\path\to\ImmediatelyLaw\tools\daily_update.ps1' `
+    -WorkingDirectory 'C:\path\to\ImmediatelyLaw'
+Register-ScheduledTask -TaskName 'ImmediatelyLaw-DailyUpdate' -Action $a `
+    -Trigger (New-ScheduledTaskTrigger -Daily -At 3am) `
+    -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew)
 ```
 
 ## 초기 전체 수집 (재해복구·처음 구축)
