@@ -2,7 +2,7 @@
 # Immediately Law — The world's fastest law check, ever.
 
 <p align="center">
-  <img src="assets/icon.png" width="120" alt="즉시로 아이콘">
+  <img src="assets/screenshot.png" width="720" alt="즉시로 화면 갈무리">
 </p>
 
 <p align="center">
