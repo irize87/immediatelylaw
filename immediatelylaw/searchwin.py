@@ -51,8 +51,18 @@ class SearchWindow(QWidget):
         root.addWidget(self.list)
 
         self.tv = QTextBrowser()
+        self.tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.tv.setStyleSheet("QTextBrowser{border:1px solid #e3e6ea;"
-                              "border-radius:6px;background:#fff;}")
+                              "border-radius:10px;background:#fff;}"
+                              "QScrollBar:vertical{background:transparent;"
+                              "width:8px;margin:4px 4px 4px 0;}"
+                              "QScrollBar::handle:vertical{background:#d3d8df;"
+                              "border-radius:3px;min-height:32px;}"
+                              "QScrollBar::add-line:vertical,"
+                              "QScrollBar::sub-line:vertical{height:0;}"
+                              "QScrollBar::add-page:vertical,"
+                              "QScrollBar::sub-page:vertical"
+                              "{background:none;}")
         root.addWidget(self.tv, 1)
 
         # 카드와 동일한 공용 하단바(글자크기 −/+ · 링크 · 복사)
@@ -70,9 +80,18 @@ class SearchWindow(QWidget):
     # ---------- 테마 ----------
     def _refresh_palette(self):
         p = theme.palette(self.cfg)
+        handle = "#4a525e" if p["dark"] else "#d3d8df"
         self.tv.setStyleSheet(
             f"QTextBrowser{{border:1px solid {p['border']};"
-            f"border-radius:6px;background:{p['panel']};}}")
+            f"border-radius:10px;background:{p['panel']};}}"
+            "QScrollBar:vertical{background:transparent;"
+            "width:8px;margin:4px 4px 4px 0;}"
+            f"QScrollBar::handle:vertical{{background:{handle};"
+            "border-radius:3px;min-height:32px;}}"
+            "QScrollBar::add-line:vertical,"
+            "QScrollBar::sub-line:vertical{height:0;}"
+            "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical"
+            "{background:none;}")
         self.footer.apply_palette(p)
         self._render()
         self._apply_badge()
@@ -86,7 +105,7 @@ class SearchWindow(QWidget):
         if not q:
             return
         self._clear_transient()
-        self._show_badge("neutral", "(조회)")
+        self._show_badge("neutral", "조회")
         if q["art"]:
             self._resolve(q["law"], q["art"])
             return
@@ -151,7 +170,7 @@ class SearchWindow(QWidget):
                 f"· API 키를 등록하면 미등재 법령도 바로 가져올 수 있습니다."
                 f"</p>")
             self.lb_state.setText("로컬 데이터에 없음")
-            self._show_badge("check", "(확인)")
+            self._show_badge("check", "확인")
             return
         self.lb_state.setText("법제처에서 가져오는 중…")
         from .workers import ResolveWorker
@@ -166,7 +185,7 @@ class SearchWindow(QWidget):
         else:
             self.tv.setHtml("<p style='color:#b45309;padding:12px;'>"
                             "법제처에서도 찾지 못했습니다.</p>")
-            self._show_badge("check", "(확인)")
+            self._show_badge("check", "확인")
 
     def _show_result(self, res, note=""):
         self._last_res = res
@@ -178,10 +197,10 @@ class SearchWindow(QWidget):
         self._push_history(res)
         self._render()
         if src == "local-reg":
-            self._show_badge("neutral", "(자치)")
+            self._show_badge("neutral", "자치")
             self.footer.set_state("등록 자치법규")
         else:
-            self._show_badge("neutral", "(조회)")
+            self._show_badge("neutral", "조회")
             self.footer.set_state(note)
             if self.cfg["verify_enabled"]:
                 self._verify(res)
@@ -250,8 +269,8 @@ class SearchWindow(QWidget):
         w.start()
 
     def _on_verified(self, kind, msg):
-        text = {"current": "(현행)", "check": "(확인)",
-                "offline": "(오프라인)"}.get(kind, f"({kind})")
+        text = {"current": "현행", "check": "확인",
+                "offline": "오프라인"}.get(kind, str(kind))
         self._show_badge(kind if kind in ("current", "check") else "neutral",
                          text)
 
@@ -264,8 +283,9 @@ class SearchWindow(QWidget):
         p = theme.palette(self.cfg)
         style = p.get(f"badge_{kind}") or p["badge_neutral"]
         self.lb_badge.setText(text)
-        self.lb_badge.setStyleSheet(style + "padding:2px 6px;"
-                                    "border-radius:4px;font-weight:bold;")
+        self.lb_badge.setStyleSheet(style + "padding:3px 10px;"
+                                    "border-radius:11px;font-weight:bold;"
+                                    "font-family:'Malgun Gothic';")
 
     def _on_copy(self):
         if self._last_res:

@@ -196,7 +196,7 @@ class ImmediatelyLaw(QObject):
             from .workers import ResolveWorker
             self.overlay.lb_title.setText(
                 f"{c['law']} 제{c['art']}조")
-            self.overlay.set_badge("neutral", "(가져오는 중)")
+            self.overlay.set_badge("neutral", "가져오는 중")
             self.overlay.set_state("법제처에서 가져오는 중…")
             w = ResolveWorker(self.db, self.api, c["law"], c["art"],
                               hints=c.get("law_all"))
@@ -205,7 +205,7 @@ class ImmediatelyLaw(QObject):
             w.start()
         else:
             self.overlay.lb_title.setText(f"{c['law']} 제{c['art']}조")
-            self.overlay.set_badge("check", "(확인)")
+            self.overlay.set_badge("check", "확인")
             self.overlay.set_state("로컬 데이터에 없는 법령입니다. "
                                    "데이터 갱신이나 API 키를 확인하세요.")
             if not self.overlay.isVisible():
@@ -216,7 +216,7 @@ class ImmediatelyLaw(QObject):
             self.overlay.show_result(res)
             self._remember_law(res["law_name"])
         else:
-            self.overlay.set_badge("check", "(확인)")
+            self.overlay.set_badge("check", "확인")
             self.overlay.set_state("법제처에서도 찾을 수 없습니다.")
 
     def _remember_law(self, law_name: str):
@@ -231,7 +231,7 @@ class ImmediatelyLaw(QObject):
         if not self.cfg["verify_enabled"]:
             ver = self.db.get_meta("data_ver")
             self.overlay.set_badge("current" if ver else "check",
-                                   "(현행)" if ver else "(확인)")
+                                   "현행" if ver else "확인")
             return
         w = VerifyWorker(self.db, self.api, res)
         w.done.connect(self._on_verified)
@@ -239,8 +239,8 @@ class ImmediatelyLaw(QObject):
         w.start()
 
     def _on_verified(self, kind: str, msg: str):
-        text = {"current": "(현행)", "check": "(확인)",
-                "offline": "(오프라인)"}.get(kind)
+        text = {"current": "현행", "check": "확인",
+                "offline": "오프라인"}.get(kind)
         self.overlay.set_badge(kind if kind in ("current", "check")
                                else "neutral", text)
 

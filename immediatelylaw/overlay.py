@@ -4,9 +4,10 @@ import html
 import re
 import time
 
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QTextBrowser,
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import (QColor, QFont, QIcon, QPainter, QPen, QPixmap)
+from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect,
+                               QHBoxLayout, QLabel, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
 
 from . import theme
@@ -16,12 +17,13 @@ CIRCLED = "\u2460\u2461\u2462\u2463\u2464\u2465\u2466\u2467\u2468\u2469" \
           "\u246a\u246b\u246c\u246d\u246e\u246f\u2470\u2471\u2472\u2473"
 
 BADGE_TEXT = {
-    "current": "(현행)", "check": "(확인)", "neutral": "(로컬)",
+    "current": "현행", "check": "확인", "neutral": "로컬",
 }
 
 
 class FooterBar(QWidget):
-    """카드·조회창 공용 하단바: 글자크기 −/+ · 상태문구 · 링크 · 복사."""
+    """카드·조회창 공용 하단바: 글자크기 −/+(둥근 그룹) · 상태문구 · 링크 ·
+    복사(둥근 버튼). 테마 팔레트로 색을 입힌다."""
     copy_clicked = Signal()
     font_step = Signal(int)   # 새 pt (config에 저장 완료된 값)
 
@@ -29,15 +31,24 @@ class FooterBar(QWidget):
         super().__init__(parent)
         self.cfg = cfg
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(8)
+        lay.setContentsMargins(0, 2, 0, 0)
+        lay.setSpacing(10)
+
+        # − / + 를 둥근 테두리 하나의 그룹으로 묶는다.
+        self.grp = QFrame(self)
+        self.grp.setObjectName("fontGroup")
+        gl = QHBoxLayout(self.grp)
+        gl.setContentsMargins(3, 2, 3, 2)
+        gl.setSpacing(2)
         self.btn_font_dec = self._btn("−", "글자 작게 (장·절·본문)")
         self.btn_font_inc = self._btn("+", "글자 크게 (장·절·본문)")
         self.btn_font_dec.clicked.connect(lambda: self._step(-1))
         self.btn_font_inc.clicked.connect(lambda: self._step(1))
+        gl.addWidget(self.btn_font_dec)
+        gl.addWidget(self.btn_font_inc)
+
         self.lb_state = QLabel("")
         self.lb_state.setFont(QFont("Malgun Gothic", 8))
-        self.lb_state.setStyleSheet("color:#8a919c;")
         self.btn_site = self._link(
             "https://www.law.go.kr/", "법령정보센터 ↗",
             "국가법령정보센터(www.law.go.kr) 열기")
@@ -46,41 +57,54 @@ class FooterBar(QWidget):
             "제작자 GitHub 페이지 열기")
         self.btn_copy = QPushButton("  복사  ")
         self.btn_copy.setCursor(Qt.PointingHandCursor)
-        self.btn_copy.setStyleSheet(
-            "QPushButton{border:1px solid #c6cbd2;border-radius:5px;"
-            "padding:4px 10px;background:#f7f8fa;color:#2a2f36;"
-            "font-family:'Malgun Gothic';font-size:9pt;}"
-            "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}"
-            "QPushButton:pressed{background:#e2e9f4;}")
+        self.btn_copy.setFocusPolicy(Qt.NoFocus)
+        self.btn_copy.setIconSize(QSize(15, 15))
         self.btn_copy.clicked.connect(self.copy_clicked)
-        for w in (self.btn_font_dec, self.btn_font_inc, self.lb_state):
+        for w in (self.grp, self.lb_state):
             lay.addWidget(w)
         lay.addStretch(1)
         for w in (self.btn_site, self.btn_author, self.btn_copy):
             lay.addWidget(w)
 
+    @staticmethod
+    def _copy_icon(color: str) -> QIcon:
+        """두 장 겹친 문서 모양의 복사 아이콘을 그려 쓴다."""
+        pm = QPixmap(16, 16)
+        pm.fill(Qt.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.Antialiasing)
+        pen = QPen(QColor(color))
+        pen.setWidthF(1.4)
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+        p.drawRoundedRect(1.6, 4.6, 8, 8, 2.2, 2.2)
+        p.drawRoundedRect(5.0, 1.4, 8, 8, 2.2, 2.2)
+        p.end()
+        return QIcon(pm)
+
     def apply_palette(self, p: dict):
         """테마 팔레트(theme.LIGHT/DARK)를 버튼·링크·상태 문구에 적용."""
         self.lb_state.setStyleSheet(f"color:{p['fg2']};")
+        self.grp.setStyleSheet(
+            "#fontGroup{background:transparent;"
+            f"border:1px solid {p['border']};border-radius:11px;}}")
         bss = (
-            f"QPushButton{{border:1px solid {p['border']};border-radius:7px;"
-            f"background:{p['panel']};color:{p['fg']};"
+            f"QPushButton{{border:none;background:transparent;color:{p['fg']};"
             f"font-family:'Malgun Gothic';font-size:11pt;font-weight:bold;}}"
-            f"QPushButton:hover{{background:{p['hover']};"
-            f"border-color:{p['fg2']};}}"
-            f"QPushButton:pressed{{background:{p['border']};}}")
+            f"QPushButton:hover{{background:{p['hover']};border-radius:8px;}}")
         self.btn_font_dec.setStyleSheet(bss)
         self.btn_font_inc.setStyleSheet(bss)
         self.btn_copy.setStyleSheet(
-            f"QPushButton{{border:1px solid {p['border']};"
-            f"border-radius:5px;padding:4px 10px;background:{p['panel']};"
-            f"color:{p['fg']};font-family:'Malgun Gothic';font-size:9pt;}}"
-            f"QPushButton:hover{{background:{p['hover']};"
-            f"border-color:{p['fg2']};}}"
-            f"QPushButton:pressed{{background:{p['border']};}}")
+            f"QPushButton{{border:none;border-radius:11px;"
+            f"background:{p.get('copy_bg', p['hover'])};color:{p['fg']};"
+            f"font-family:'Malgun Gothic';font-size:10pt;padding:6px 14px;}}"
+            f"QPushButton:hover{{background:{p['hover']};}}")
+        self.btn_copy.setIcon(self._copy_icon(p["fg"]))
         for lb in (self.btn_site, self.btn_author):
-            lb.setText(f"<a href='{lb.property('url')}' "
-                       f"style='color:{p['link']}'>{lb.property('label')}</a>")
+            lb.setText(
+                "<a href='" + str(lb.property('url')) + "' style='color:"
+                + p['link'] + ";text-decoration:none'>"
+                + str(lb.property('label')) + "</a>")
 
     def set_state(self, text: str):
         self.lb_state.setText(text)
@@ -98,10 +122,11 @@ class FooterBar(QWidget):
         self.font_step.emit(pt)
 
     def _link(self, url: str, label: str, tip: str) -> QLabel:
-        lb = QLabel(f"<a href='{url}'>{label}</a>")
+        lb = QLabel(f"<a href='{url}' style='text-decoration:none'>"
+                    f"{label}</a>")
         lb.setProperty("url", url)
         lb.setProperty("label", label)
-        lb.setFont(QFont("Malgun Gothic", 8))
+        lb.setFont(QFont("Malgun Gothic", 9))
         lb.setCursor(Qt.PointingHandCursor)
         lb.setToolTip(tip)
         lb.setOpenExternalLinks(True)
@@ -109,16 +134,10 @@ class FooterBar(QWidget):
 
     def _btn(self, text: str, tip: str) -> QPushButton:
         b = QPushButton(text)
-        b.setFixedSize(24, 24)
+        b.setFixedSize(30, 26)
         b.setCursor(Qt.PointingHandCursor)
         b.setFocusPolicy(Qt.NoFocus)   # 본체(Esc) 포커스 유지
         b.setToolTip(tip)
-        b.setStyleSheet(
-            "QPushButton{border:1px solid #c6cbd2;border-radius:7px;"
-            "background:#f7f8fa;color:#4a5058;"
-            "font-family:'Malgun Gothic';font-size:11pt;font-weight:bold;}"
-            "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}"
-            "QPushButton:pressed{background:#e2e9f4;}")
         return b
 
 
@@ -195,18 +214,33 @@ class OverlayCard(QWidget):
 
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint
                             | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setObjectName("cardRoot")
-        w = int(cfg["overlay_width"])
-        self.setFixedWidth(w)
+        # 둥근 카드 본문 + 그림자용 여백(카드 본문 폭은 설정값 그대로)
+        self.MARGIN = 14
+        self.setFixedWidth(int(cfg["overlay_width"]) + self.MARGIN * 2)
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(14, 10, 14, 10)
-        root.setSpacing(6)
-        # objectName 스코프: 자식 캐스케이드(원치 않는 테두리) 방지.
-        # 색을 명시하지 않으면 시스템 다크테마 기본 글자색과 충돌한다.
-        self.setStyleSheet(
-            "#cardRoot{background:#ffffff;border:1px solid #d7dbe0;}")
+        root.setContentsMargins(self.MARGIN, self.MARGIN - 2,
+                                self.MARGIN, self.MARGIN + 6)
+        root.setSpacing(0)
+        # 앱 전역 다크 QSS(QWidget 배경)로부터 창 자체는 투명 유지
+        self.setStyleSheet("#cardRoot{background:transparent;}")
+
+        self.body = QFrame(self)
+        self.body.setObjectName("cardBody")
+        root.addWidget(self.body)
+        shadow = QGraphicsDropShadowEffect(self.body)
+        shadow.setBlurRadius(34)
+        shadow.setOffset(0, 6)
+        shadow.setColor(QColor(30, 41, 59, 70))
+        self.body.setGraphicsEffect(shadow)
+        self._shadow = shadow
+
+        lay = QVBoxLayout(self.body)
+        lay.setContentsMargins(16, 12, 16, 12)
+        lay.setSpacing(6)
 
         top = QHBoxLayout(); top.setSpacing(8)
         self.lb_title = QLabel("")
@@ -217,37 +251,41 @@ class OverlayCard(QWidget):
         bf = QFont("Malgun Gothic", 9); bf.setBold(True)
         self.lb_badge.setFont(bf)
         top.addWidget(self.lb_title)
+        top.addWidget(self.lb_badge)      # 제목 바로 뒤 알약 배지
         top.addStretch(1)
-        top.addWidget(self.lb_badge)
         # (현행) 배지 옆 닫기 버튼
         self.btn_close = QPushButton("✕")
-        self.btn_close.setFixedSize(22, 22)
+        self.btn_close.setFixedSize(24, 24)
         self.btn_close.setCursor(Qt.PointingHandCursor)
         self.btn_close.setFocusPolicy(Qt.NoFocus)   # 카드(Esc) 포커스 유지
         self.btn_close.setToolTip("창 닫기 (Esc 두 번)")
-        self.btn_close.setStyleSheet(
-            "QPushButton{border:none;border-radius:5px;background:transparent;"
-            "color:#8a919c;font-family:'Malgun Gothic';font-size:10pt;}"
-            "QPushButton:hover{background:#f0f2f5;color:#3a3f46;}"
-            "QPushButton:pressed{background:#e2e5e9;}")
         self.btn_close.clicked.connect(self.hide)
         top.addWidget(self.btn_close)
-        root.addLayout(top)
+        lay.addLayout(top)
 
-        self.tv = QTextBrowser(self)
+        self.tv = QTextBrowser(self.body)
         self.tv.setOpenExternalLinks(False)
+        self.tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.tv.setStyleSheet(
             "QTextBrowser{border:none;background:transparent;}")
         self.tv.setMinimumHeight(60)
         self.tv.setMaximumHeight(int(self._screen_h() * 0.5))
-        root.addWidget(self.tv)
+        lay.addWidget(self.tv)
+
+        # 본문과 하단바를 가늘게 가르는 구분선(카드 끝까지 전폭)
+        self.line = QFrame(self.body)
+        self.line.setFixedHeight(1)
+        line_l = QHBoxLayout()
+        line_l.setContentsMargins(-16, 0, -16, 0)
+        line_l.addWidget(self.line)
+        lay.addLayout(line_l)
 
         # 공용 하단바: 글자크기 −/+ · 상태 · 법령정보센터/제작자 링크 · 복사
         self.footer = FooterBar(self.cfg)
         self.footer.copy_clicked.connect(self._on_copy)
         self.footer.font_step.connect(self._change_font)
         self.lb_state = self.footer.lb_state   # Esc 안내/복사 문구용 별칭
-        root.addWidget(self.footer)
+        lay.addWidget(self.footer)
 
         self._badge = ("neutral", "")
         self._refresh_palette()
@@ -255,16 +293,30 @@ class OverlayCard(QWidget):
     # ---------- 테마 ----------
     def _refresh_palette(self):
         p = theme.palette(self.cfg)
-        self.setStyleSheet(
-            f"#cardRoot{{background:{p['bg']};"
-            f"border:1px solid {p['border']};}}")
+        self.body.setStyleSheet(
+            f"#cardBody{{background:{p['bg']};border:1px solid {p['border']};"
+            f"border-radius:16px;}}")
+        self.line.setStyleSheet(
+            f"QFrame{{background:{p['border']};border:none;}}")
+        handle = "#4a525e" if p["dark"] else "#d3d8df"
+        self.tv.setStyleSheet(
+            "QTextBrowser{border:none;background:transparent;}"
+            "QScrollBar:vertical{background:transparent;width:8px;"
+            "margin:2px 2px 2px 0;}"
+            f"QScrollBar::handle:vertical{{background:{handle};"
+            "border-radius:3px;min-height:32px;}}"
+            "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical"
+            "{height:0;background:none;}"
+            "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical"
+            "{background:none;}")
+        self._shadow.setColor(
+            QColor(0, 0, 0, 110) if p["dark"] else QColor(30, 41, 59, 70))
         self.lb_title.setStyleSheet(f"color:{p['fg']};")
         self.btn_close.setStyleSheet(
-            f"QPushButton{{border:none;border-radius:5px;"
+            f"QPushButton{{border:none;border-radius:7px;"
             f"background:transparent;color:{p['fg2']};"
             f"font-family:'Malgun Gothic';font-size:10pt;}}"
-            f"QPushButton:hover{{background:{p['hover']};color:{p['fg']};}}"
-            f"QPushButton:pressed{{background:{p['border']};}}")
+            f"QPushButton:hover{{background:{p['hover']};color:{p['fg']};}}")
         self.footer.apply_palette(p)
         if self._current_list:
             self.tv.setHtml(articles_html_multi(
@@ -276,8 +328,10 @@ class OverlayCard(QWidget):
         p = theme.palette(self.cfg)
         style = p.get(f"badge_{kind}") or p["badge_neutral"]
         self.lb_badge.setText(text)
-        self.lb_badge.setStyleSheet(style + "padding:2px 6px;"
-                                    "border-radius:4px;")
+        # 알약(pill) 모양 배지
+        self.lb_badge.setStyleSheet(style + "padding:3px 10px;"
+                                    "border-radius:11px;"
+                                    "font-family:'Malgun Gothic';")
 
     @staticmethod
     def _screen_h():
@@ -298,11 +352,11 @@ class OverlayCard(QWidget):
         self.lb_title.setText(self._combined_title(res_list))
         src = res.get("source")
         if src == "local-reg":
-            self.set_badge("neutral", "(자치)")
+            self.set_badge("neutral", "자치")
         elif res.get("pending"):
-            self.set_badge("check", "(시행예정)")
+            self.set_badge("check", "시행예정")
         else:
-            self.set_badge("neutral", "(조회)")
+            self.set_badge("neutral", "조회")
         self.tv.setHtml(articles_html_multi(
             res_list, self._pt(), theme.palette(self.cfg)["dark"]))
         self.lb_state.setText(note)
@@ -369,10 +423,13 @@ class OverlayCard(QWidget):
         scr = QGuiApplication.primaryScreen().availableGeometry()
         corner = self.cfg["overlay_corner"]
         m = 14
-        x = scr.right() - self.width() - m if "right" in corner \
-            else scr.left() + m
-        y = scr.top() + m if corner.startswith("top") \
-            else scr.bottom() - h - m
+        ml, mt, mr, mb = self.MARGIN, self.MARGIN - 2, self.MARGIN, \
+            self.MARGIN + 6
+        # 투명 여백(MARGIN)을 뺀 '보이는 카드' 기준으로 화면 가장자리 정렬
+        x = scr.right() - self.width() + mr - m if "right" in corner \
+            else scr.left() + m - ml
+        y = scr.top() + m - mt if corner.startswith("top") \
+            else scr.bottom() - h + mb - m
         self.move(x, y)
         self.show(); self.raise_(); self.activateWindow()
         self._restart_hide()
@@ -419,7 +476,8 @@ class OverlayCard(QWidget):
                 except AttributeError:
                     pass
             if gp is not None:
-                g = self.frameGeometry()
+                tl = self.mapToGlobal(QPoint(self.body.x(), self.body.y()))
+                g = QRect(tl, self.body.size())   # 그림자 여백 제외한 본문
                 if not g.contains(gp):
                     self.hide()
         return False

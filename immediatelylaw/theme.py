@@ -7,6 +7,7 @@ DARK = dict(
     dark=True,
     bg="#1f242b", panel="#262c34", fg="#e8eaed", fg2="#9aa3ad",
     border="#39414b", hover="#323a45", link="#6cb2ff",
+    copy_bg="#2c333b",
     badge_current="color:#7ee2a1;background:#22402e;",
     badge_check="color:#f0c674;background:#403418;",
     badge_neutral="color:#b6bdc7;background:#333a44;",
@@ -14,7 +15,8 @@ DARK = dict(
 LIGHT = dict(
     dark=False,
     bg="#ffffff", panel="#ffffff", fg="#20242b", fg2="#8a919c",
-    border="#d7dbe0", hover="#eef2f8", link="#0a66c2",
+    border="#e2e6ea", hover="#eef2f8", link="#2563eb",
+    copy_bg="#f3f4f6",
     badge_current="color:#1a7f37;background:#e3f5e9;",
     badge_check="color:#b45309;background:#fdf0d9;",
     badge_neutral="color:#5b6470;background:#eef0f3;",

@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.3.5-blue" alt="v1.3.5">
+  <img src="https://img.shields.io/badge/version-v1.3.6-blue" alt="v1.3.6">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Windows 10/11">
   <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
@@ -91,11 +91,11 @@ zip을 받아 압축을 풉니다.
 
 장·절 표기와 조문 본문은 맑은 고딕 같은 크기로 표시되며, 상태는 배지로 표시됩니다:
 
-**(현행)** 초록 = 법제처 현행 법령과 일치(실시간 온라인 검증)
+**현행** 초록 배지 = 법제처 현행 법령과 일치(실시간 온라인 검증)
 
-**(확인)** 주황 = 개정 여부 확인 필요(실시간 현행 법령과 로컬 조문 데이터 불일치)
+**확인** 주황 배지 = 개정 여부 확인 필요(실시간 현행 법령과 로컬 조문 데이터 불일치)
 
-**(오프라인)** = 네트워크 없이 로컬 데이터 기준
+**오프라인** 배지 = 네트워크 없이 로컬 데이터 기준
 
 ### 옵션 (트레이 우클릭 › 설정)
 - **데이터**: 배포 주소(기본값 내장 — 수정 불필요), 지금 업데이트 확인
