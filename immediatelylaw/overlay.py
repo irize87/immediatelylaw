@@ -410,11 +410,17 @@ class OverlayCard(QWidget):
     def eventFilter(self, obj, ev):
         from PySide6.QtCore import QEvent
         if ev.type() == QEvent.MouseButtonPress and self.isVisible():
-            gp = getattr(ev, "globalPosition", None)
+            gp = None
+            try:
+                gp = ev.globalPosition().toPoint()
+            except (AttributeError, TypeError):
+                try:
+                    gp = ev.globalPos()
+                except AttributeError:
+                    pass
             if gp is not None:
-                pt = gp.toPoint()
                 g = self.frameGeometry()
-                if not g.contains(pt):
+                if not g.contains(gp):
                     self.hide()
         return False
 
