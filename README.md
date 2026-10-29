@@ -5,6 +5,12 @@
   <img src="assets/icon.png" width="120" alt="즉시로 아이콘">
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/version-v1.3.4-blue" alt="v1.3.4">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Windows 10/11">
+</p>
+
 **즉시로**(Immediately Law)는 대한민국 법령을 가장 빠르게 확인할 수 있는 프로그램입니다.
 
 텍스트로 제시되는 법령을 복사(Ctrl + C)하면 **화면 오른쪽 아래**에 조문이 바로 출력됩니다.
@@ -130,6 +136,37 @@ python run.py            # 창 없이 실행: pythonw run.py
   (환경변수 `IMMEDIATELYLAW_DATA_DIR`로 변경 가능)
 - 코드 구조: `immediatelylaw/` 앱 본체(watcher·overlay·resolver·db·workers…),
   `tools/` 데이터 수집·배포(publisher·push_dist)
+
+## 의존 라이브러리 및 라이선스
+
+이 프로그램이 사용하는 오픈소스 라이브러리와 라이선스입니다. (배지는 현재 릴리즈 동봉 버전)
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
+  <img src="https://img.shields.io/badge/Python-PSF-green" alt="Python PSF">
+  <img src="https://img.shields.io/badge/PySide6-v6.12.0-blue" alt="PySide6">
+  <img src="https://img.shields.io/badge/PySide6-LGPL--3.0-green" alt="PySide6 LGPL-3.0">
+  <img src="https://img.shields.io/badge/requests-v2.34.2-blue" alt="requests">
+  <img src="https://img.shields.io/badge/requests-Apache--2.0-green" alt="requests Apache-2.0">
+  <img src="https://img.shields.io/badge/pypdf-v6.21.3-blue" alt="pypdf">
+  <img src="https://img.shields.io/badge/pypdf-BSD--3--Clause-green" alt="pypdf BSD-3-Clause">
+  <img src="https://img.shields.io/badge/defusedxml-v0.7.1-blue" alt="defusedxml">
+  <img src="https://img.shields.io/badge/defusedxml-PSF-green" alt="defusedxml PSF">
+</p>
+
+| 라이브러리 | 동봉 버전 | 용도 | 라이선스 |
+|---|---|---|---|
+| Python | 3.15 (exe에 동봉) | 런타임 인터프리터 | PSF |
+| PySide6 (Qt for Python) | 6.12.0 | GUI — 트레이, 오버레이 카드, 조회·설정 창 | LGPL-3.0 |
+| requests | 2.34.2 | HTTPS 데이터 다운로드·법령 API 호출 | Apache-2.0 |
+| pypdf | 6.21.3 | 자치법규 PDF 텍스트 추출 | BSD-3-Clause |
+| defusedxml | 0.7.1 | HWPX/DOCX 등 XML 안전 파싱 | PSF |
+
+- 프로그램 본체는 MIT 라이선스입니다.
+- Qt(PySide6)는 LGPL이므로, 재링크가 가능한 onedir(폴더형 배포) 방식으로 배포하며
+  본 저장소의 소스로 교체·재빌드가 가능합니다.
+
+---
 
 ## 라이선스 및 데이터 고지
 
