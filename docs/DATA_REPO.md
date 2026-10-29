@@ -35,12 +35,22 @@ python -m tools.push_dist --repo https://github.com/nazgregory/immediatelylaw-da
   `dist` 브랜치에 미러링합니다. 첫 실행 시 자동 클론되므로 추가 설정이 필요 없습니다.
 - git 인증이 처음이면 `gh auth login`(또는 PAT)으로 로그인해 두세요.
 
-## 매일 자동 실행 (권장) — Windows 작업 스케줄러
+## 공식 데이터는 매일 자동 최신화 됩니다
 
-> 이 저장소 발행 PC에는 이미 등록되어 있습니다:
-> 작업 이름 `ImmediatelyLaw-DailyUpdate`, 매일 **03:00**
-> (`StartWhenAvailable` — 그 시각에 꺼져 있으면 다음 로그인 때 수행).
-> OC 키는 설정 앱에 저장해 두면(또는 `IMMEDIATELYLAW_OC` 환경변수) 스크립트에서 생략 가능.
+공식 데이터베이스(https://github.com/nazgregory/immediatelylaw-data)는 매일 03시에 법령 변경 사항이 자동으로 최신화 됩니다
+
+## PC 수동 최신화
+
+PC에서 수동 발행도 그대로 가능합니다(설정에 OC 키 저장 시 불필요):
+
+```powershell
+$env:IMMEDIATELYLAW_OC = '본인OC키'
+python -m tools.publisher update
+python -m tools.publisher package
+python -m tools.push_dist --repo https://github.com/nazgregory/immediatelylaw-data.git
+```
+
+수동 백업용 크론 예시(과거 방식):
 
 PowerShell 스크립트를 만들고(`tools/daily_update.ps1` 예):
 
