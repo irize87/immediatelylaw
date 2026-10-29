@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """법령명·조번호 입력 조회 창."""
-import re
+import html
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget,
-                               QListWidgetItem, QPushButton, QTextBrowser,
+                               QListWidgetItem, QTextBrowser,
                                QAbstractItemView, QVBoxLayout, QWidget)
 
 from . import refparse, resolver
-from .overlay import article_html, BADGE_STYLE
+from .overlay import FooterBar, article_html, BADGE_STYLE
 
 
 class SearchWindow(QWidget):
@@ -55,16 +55,14 @@ class SearchWindow(QWidget):
                               "border-radius:6px;background:#fff;}")
         root.addWidget(self.tv, 1)
 
-        foot = QHBoxLayout()
-        self.lb_state = QLabel("법령명과 조번호를 입력하세요. "
-                               "Enter = 조회, 목록 더블클릭 = 조문 열기")
-        self.lb_state.setStyleSheet("color:#8a919c;font-size:9pt;")
-        btn = QWidget(self)
-        copyb = _CopyButton("조문 복사")
-        copyb.clicked.connect(self._on_copy)
-        foot.addWidget(self.lb_state, 1)
-        foot.addWidget(copyb)
-        root.addLayout(foot)
+        # 카드와 동일한 공용 하단바(글자크기 −/+ · 링크 · 복사)
+        self.footer = FooterBar(self.cfg)
+        self.footer.copy_clicked.connect(self._on_copy)
+        self.footer.font_step.connect(self._on_font)
+        self.lb_state = self.footer.lb_state
+        self.footer.set_state("법령명과 조번호를 입력하세요. "
+                              "Enter = 조회, 목록 클릭 = 조문 열기")
+        root.addWidget(self.footer)
 
         QShortcut(QKeySequence("Ctrl+F"), self,
                   activated=lambda: self.ed.setFocus())
@@ -74,7 +72,7 @@ class SearchWindow(QWidget):
         q = refparse.parse_query(self.ed.text())
         if not q:
             return
-        self.list.clear()
+        self._clear_transient()
         self._show_badge("neutral", "(조회)")
         if q["art"]:
             self._resolve(q["law"], q["art"])
@@ -117,7 +115,7 @@ class SearchWindow(QWidget):
         arts = self.db.conn.execute(
             "SELECT art_no, title FROM article WHERE mst=? ORDER BY ord",
             (mst,)).fetchall()
-        self.list.clear()
+        self._clear_transient()
         for a in arts:
             it = QListWidgetItem(f"제{a['art_no']}조 {a['title'] or ''}")
             it.setData(Qt.UserRole, {"kind": "art", "name": name,
@@ -157,27 +155,73 @@ class SearchWindow(QWidget):
                             "법제처에서도 찾지 못했습니다.</p>")
             self._show_badge("check", "(확인)")
 
-    def _show_result(self, res, note="검증 중…"):
+    def _show_result(self, res, note=""):
         self._last_res = res
         src = res.get("source")
-        one = QListWidgetItem(
-            f"{res['law_name']} 제{res['art_no']}조"
-            + (f"({res['title']})" if res.get('title') else "")
-            + ("  [자치]" if src == "local-reg" else ""))
-        one.setData(Qt.UserRole, {"kind": "art_direct", "res": res})
-        self.list.insertItem(0, one)
-        head = f"<h3 style='margin:6px 4px 2px 4px;'>{res['law_name']} " \
-               f"제{res['art_no']}조" + (f"({res['title']})" if res.get('title') else "") \
-               + ("" if src != "local-reg" else " [자치]") + "</h3>"
-        self.tv.setHtml(head + article_html(res))
+        self._push_history(res)
+        self._render()
         if src == "local-reg":
             self._show_badge("neutral", "(자치)")
-            self.lb_state.setText("등록 자치법규")
+            self.footer.set_state("등록 자치법규")
         else:
             self._show_badge("neutral", "(조회)")
-            self.lb_state.setText(note)
+            self.footer.set_state(note)
             if self.cfg["verify_enabled"]:
                 self._verify(res)
+
+    # ---------- 조회 이력 ----------
+    def _history_label(self, res):
+        return (f"{res['law_name']} 제{res['art_no']}조"
+                + (f"({res['title']})" if res.get("title") else "")
+                + ("  [자치]" if res.get("source") == "local-reg" else ""))
+
+    def _push_history(self, res):
+        """본 조문 목록은 열람 이력. 동일 항목은 중복 추가하지 않고 맨 위로 이동."""
+        it = None
+        for i in range(self.list.count()):
+            cand = self.list.item(i)
+            d = cand.data(Qt.UserRole) or {}
+            r = d.get("res") or {}
+            if (d.get("kind") == "art_direct"
+                    and r.get("law_name") == res["law_name"]
+                    and str(r.get("art_no")) == str(res["art_no"])):
+                # 최신 해석 데이터로 갱신 후 맨 위로 이동
+                cand.setData(Qt.UserRole, {"kind": "art_direct", "res": res})
+                self.list.takeItem(i)
+                it = cand
+                break
+        if it is None:
+            it = QListWidgetItem(self._history_label(res))
+            it.setData(Qt.UserRole, {"kind": "art_direct", "res": res})
+        self.list.insertItem(0, it)
+        self.list.setCurrentItem(it)
+
+    def _clear_transient(self):
+        """검색결과·목차 같은 임시 항목만 지운다(열람 이력은 최상단 유지)."""
+        for i in range(self.list.count() - 1, -1, -1):
+            d = self.list.item(i).data(Qt.UserRole) or {}
+            if d.get("kind") != "art_direct":
+                self.list.takeItem(i)
+
+    # ---------- 렌더 ----------
+    def _render(self):
+        """법령명(굵게) · 장·절(회색) · 본문 — 모두 같은 폰트·같은 크기."""
+        res = self._last_res
+        if not res:
+            return
+        try:
+            pt = int(self.cfg["font_pt"])
+        except (TypeError, ValueError):
+            pt = 11
+        pt = max(8, min(20, pt))
+        head = self._history_label(res).replace("  [자치]", " [자치]")
+        self.tv.setHtml(
+            f'<div style="font-family:\'Malgun Gothic\';font-size:{pt}pt;'
+            f'font-weight:bold;color:#20242b;margin:0 2px 6px 2px;">'
+            f'{html.escape(head)}</div>' + article_html(res, pt))
+
+    def _on_font(self, pt: int):
+        self._render()
 
     def _verify(self, res):
         from .workers import VerifyWorker
@@ -190,7 +234,6 @@ class SearchWindow(QWidget):
         text = {"current": "(현행)", "check": "(확인)",
                 "offline": "(오프라인)"}.get(kind, f"({kind})")
         self._show_badge(kind if kind in BADGE_STYLE else "neutral", text)
-        self.lb_state.setText(msg)
 
     def _show_badge(self, kind, text):
         style = BADGE_STYLE.get(kind, BADGE_STYLE["neutral"])[0]
@@ -201,14 +244,4 @@ class SearchWindow(QWidget):
     def _on_copy(self):
         if self._last_res:
             self.copy_requested.emit(self._last_res["body"])
-            self.lb_state.setText("클립보드에 복사했습니다.")
-
-
-class _CopyButton(QPushButton):
-    def __init__(self, text):
-        super().__init__(text)
-        self.setCursor(Qt.PointingHandCursor)
-        self.setStyleSheet(
-            "QPushButton{border:1px solid #c6cbd2;border-radius:5px;"
-            "padding:5px 12px;background:#f7f8fa;font-size:9pt;}"
-            "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}")
+            self.footer.set_state("클립보드에 복사했습니다.")

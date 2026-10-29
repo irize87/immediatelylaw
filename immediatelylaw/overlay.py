@@ -22,6 +22,83 @@ BADGE_TEXT = {
 }
 
 
+class FooterBar(QWidget):
+    """카드·조회창 공용 하단바: 글자크기 −/+ · 상태문구 · 링크 · 복사."""
+    copy_clicked = Signal()
+    font_step = Signal(int)   # 새 pt (config에 저장 완료된 값)
+
+    def __init__(self, cfg, parent=None):
+        super().__init__(parent)
+        self.cfg = cfg
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(8)
+        self.btn_font_dec = self._btn("−", "글자 작게 (장·절·본문)")
+        self.btn_font_inc = self._btn("+", "글자 크게 (장·절·본문)")
+        self.btn_font_dec.clicked.connect(lambda: self._step(-1))
+        self.btn_font_inc.clicked.connect(lambda: self._step(1))
+        self.lb_state = QLabel("")
+        self.lb_state.setFont(QFont("Malgun Gothic", 8))
+        self.lb_state.setStyleSheet("color:#8a919c;")
+        self.btn_site = self._link(
+            "<a href='https://www.law.go.kr/'>법령정보센터 ↗</a>",
+            "국가법령정보센터(www.law.go.kr) 열기")
+        self.btn_author = self._link(
+            "<a href='https://github.com/nazgregory'>제작자 ↗</a>",
+            "제작자 GitHub 페이지 열기")
+        self.btn_copy = QPushButton("  복사  ")
+        self.btn_copy.setCursor(Qt.PointingHandCursor)
+        self.btn_copy.setStyleSheet(
+            "QPushButton{border:1px solid #c6cbd2;border-radius:5px;"
+            "padding:4px 10px;background:#f7f8fa;color:#2a2f36;"
+            "font-family:'Malgun Gothic';font-size:9pt;}"
+            "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}"
+            "QPushButton:pressed{background:#e2e9f4;}")
+        self.btn_copy.clicked.connect(self.copy_clicked)
+        for w in (self.btn_font_dec, self.btn_font_inc, self.lb_state):
+            lay.addWidget(w)
+        lay.addStretch(1)
+        for w in (self.btn_site, self.btn_author, self.btn_copy):
+            lay.addWidget(w)
+
+    def set_state(self, text: str):
+        self.lb_state.setText(text)
+
+    def _step(self, delta: int):
+        try:
+            cur = int(self.cfg["font_pt"])
+        except (TypeError, ValueError):
+            cur = 11
+        pt = max(8, min(20, cur + delta))
+        if pt == cur:
+            return
+        self.cfg["font_pt"] = pt
+        self.cfg.save()           # 사용자가 조정하면 설정에 저장되어 유지
+        self.font_step.emit(pt)
+
+    def _link(self, html_text: str, tip: str) -> QLabel:
+        lb = QLabel(html_text)
+        lb.setFont(QFont("Malgun Gothic", 8))
+        lb.setCursor(Qt.PointingHandCursor)
+        lb.setToolTip(tip)
+        lb.setOpenExternalLinks(True)
+        return lb
+
+    def _btn(self, text: str, tip: str) -> QPushButton:
+        b = QPushButton(text)
+        b.setFixedSize(24, 24)
+        b.setCursor(Qt.PointingHandCursor)
+        b.setFocusPolicy(Qt.NoFocus)   # 본체(Esc) 포커스 유지
+        b.setToolTip(tip)
+        b.setStyleSheet(
+            "QPushButton{border:1px solid #c6cbd2;border-radius:7px;"
+            "background:#f7f8fa;color:#4a5058;"
+            "font-family:'Malgun Gothic';font-size:11pt;font-weight:bold;}"
+            "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}"
+            "QPushButton:pressed{background:#e2e9f4;}")
+        return b
+
+
 def article_html(res: dict, pt: float = 11) -> str:
     """장·절 표기와 본문이 같은 폰트(맑은 고딕)·같은 크기로 렌더된다."""
     body = res.get("body", "")
@@ -107,65 +184,12 @@ class OverlayCard(QWidget):
         self.tv.setMaximumHeight(int(self._screen_h() * 0.5))
         root.addWidget(self.tv)
 
-        foot = QHBoxLayout(); foot.setSpacing(8)
-        # 장·절·본문 글자크기 조절 버튼(둥근네모). 값은 설정에 저장되어 유지된다.
-        self.btn_font_dec = self._font_btn("−", "글자 작게 (장·절·본문)")
-        self.btn_font_inc = self._font_btn("+", "글자 크게 (장·절·본문)")
-        self.btn_font_dec.clicked.connect(lambda: self._change_font(-1))
-        self.btn_font_inc.clicked.connect(lambda: self._change_font(1))
-        self.lb_state = QLabel("")
-        sf = QFont("Malgun Gothic", 8)
-        self.lb_state.setFont(sf)
-        self.lb_state.setStyleSheet("color:#8a919c;")
-        self.btn_copy = QPushButton("  복사  ")
-        self.btn_copy.setCursor(Qt.PointingHandCursor)
-        self.btn_copy.setStyleSheet(
-            "QPushButton{border:1px solid #c6cbd2;border-radius:5px;"
-            "padding:4px 10px;background:#f7f8fa;color:#2a2f36;"
-            "font-family:'Malgun Gothic';font-size:9pt;}"
-            "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}"
-            "QPushButton:pressed{background:#e2e9f4;}")
-        self.btn_copy.clicked.connect(self._on_copy)
-        foot.addWidget(self.btn_font_dec)
-        foot.addWidget(self.btn_font_inc)
-        foot.addWidget(self.lb_state)
-        foot.addStretch(1)
-        # 법령정보센터 바로 이동 링크
-        self.btn_site = QLabel("<a href='https://www.law.go.kr/'>법령정보센터 ↗</a>")
-        self.btn_site.setFont(QFont("Malgun Gothic", 8))
-        self.btn_site.setCursor(Qt.PointingHandCursor)
-        self.btn_site.setToolTip("국가법령정보센터(www.law.go.kr) 열기")
-        self.btn_site.linkActivated.connect(self._open_site)
-        foot.addWidget(self.btn_site)
-        # 제작자 링크(깃허브 페이지)
-        self.btn_author = QLabel(
-            "<a href='https://github.com/nazgregory'>제작자 ↗</a>")
-        self.btn_author.setFont(QFont("Malgun Gothic", 8))
-        self.btn_author.setCursor(Qt.PointingHandCursor)
-        self.btn_author.setToolTip("제작자 GitHub 페이지 열기")
-        foot.addWidget(self.btn_author)
-        foot.addWidget(self.btn_copy)
-        root.addLayout(foot)
-
-    def _font_btn(self, text: str, tip: str) -> QPushButton:
-        b = QPushButton(text)
-        b.setFixedSize(24, 24)
-        b.setCursor(Qt.PointingHandCursor)
-        b.setFocusPolicy(Qt.NoFocus)   # 카드(Esc) 포커스 유지
-        b.setToolTip(tip)
-        b.setStyleSheet(
-            "QPushButton{border:1px solid #c6cbd2;border-radius:7px;"
-            "background:#f7f8fa;color:#4a5058;"
-            "font-family:'Malgun Gothic';font-size:11pt;font-weight:bold;}"
-            "QPushButton:hover{background:#eef2f8;border-color:#9db6d9;}"
-            "QPushButton:pressed{background:#e2e9f4;}")
-        return b
-
-    @staticmethod
-    def _open_site():
-        from PySide6.QtCore import QUrl
-        from PySide6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl("https://www.law.go.kr/"))
+        # 공용 하단바: 글자크기 −/+ · 상태 · 법령정보센터/제작자 링크 · 복사
+        self.footer = FooterBar(self.cfg)
+        self.footer.copy_clicked.connect(self._on_copy)
+        self.footer.font_step.connect(self._change_font)
+        self.lb_state = self.footer.lb_state   # Esc 안내/복사 문구용 별칭
+        root.addWidget(self.footer)
 
     @staticmethod
     def _screen_h():
@@ -203,12 +227,8 @@ class OverlayCard(QWidget):
         except (TypeError, ValueError):
             return 11
 
-    def _change_font(self, delta: int):
-        pt = max(8, min(20, self._pt() + delta))
-        if pt == self._pt():
-            return
-        self.cfg["font_pt"] = pt
-        self.cfg.save()               # 사용자가 조정하면 설정에 저장되어 유지
+    def _change_font(self, pt: int):
+        """FooterBar(font_step) 수신: 현재 결과를 새 크기로 다시 렌더."""
         if self._current:
             self.tv.setHtml(article_html(self._current, pt))
         self._reflow()
