@@ -8,7 +8,7 @@ import re
 import threading
 import time
 import urllib.parse
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET  # 세이프티 XML(XXE/폭주형 방어)
 
 import requests
 

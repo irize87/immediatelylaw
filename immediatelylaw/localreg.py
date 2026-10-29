@@ -16,8 +16,8 @@ import time
 import zlib
 import zipfile
 from defusedxml import DefusedXmlException
+from defusedxml.ElementTree import ParseError as XMLParseError
 from defusedxml.ElementTree import fromstring as XML_fromstring
-from xml.etree.ElementTree import ParseError as XMLParseError
 
 from .db import Database, norm_name, DATA_DIR
 

@@ -20,7 +20,7 @@ def _dbg(*a):
 
 def note_self_copy(text: str):
     _self_copy["t"] = time.time()
-    _self_copy["h"] = hashlib.sha1(text.encode("utf-8", "replace")).hexdigest()
+    _self_copy["h"] = hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()
 
 
 class ClipboardWatcher(QObject):
@@ -51,7 +51,7 @@ class ClipboardWatcher(QObject):
         if not text or len(text) > 500_000:
             return
         now = time.time()
-        h = hashlib.sha1(text.encode("utf-8", "replace")).hexdigest()
+        h = hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()
         if now - _self_copy["t"] < 1.0 and h == _self_copy["h"]:
             return  # 우리 프로그램이 복사한 것
         cites = refparse.parse(text, prev_law=self.cfg.get("last_law") or "")
