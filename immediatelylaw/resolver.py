@@ -11,6 +11,31 @@ def _art_key(art_no: str) -> str:
     return re.sub(r"\s+", "", art_no or "")
 
 
+# 줄여 부르는 기본법 이름 → 공식 법령명(기본 법률 범위 확장).
+# 예: '헌법'은 대한민국헌법이지 헌법재판소법이 아니다.
+NAME_ALIAS = {
+    "헌법": "대한민국헌법",
+    "대한민국 헌법": "대한민국헌법",
+}
+
+
+def _canonical(hint: str) -> str:
+    return NAME_ALIAS.get(norm_name(hint), "")
+
+
+_TITLE_IN_BODY = re.compile(
+    r"^\s*제\s*[0-9]+(?:의[0-9]+)?\s*조\s*[（(]([^）)]{1,40})[）)]")
+
+
+def _fill(res: dict) -> dict:
+    """일부 법령(헌법 등)은 조문 제목이 본문 접두에 있다 — 빈 title 보강."""
+    if res.get("found") and not res.get("title"):
+        m = _TITLE_IN_BODY.match(res.get("body") or "")
+        if m:
+            res["title"] = m.group(1).strip()
+    return res
+
+
 def _try_local(d, hint: str, art: str):
     rows = d.search_laws_by_name(hint)
     if not rows:  # 시행예정 버전까지 마지막 시도
@@ -30,26 +55,32 @@ def resolve(d, hint: str, art: str, api=None, hints=None):
     enforced, pending, cls) 반환. hints: 법령명 후보(긴 순)."""
     art = _art_key(art)
     hints = [h for h in (hints or [hint]) if h]
+    # 기본법 약칭('헌법' 등)은 공식명을 가장 먼저 시도한다.
+    canon = _canonical(hint)
+    if canon and canon not in hints:
+        hints.insert(0, canon)
     for h in hints:
         row, a = _try_local(d, h, art)
         if a:
-            return {"found": True, "source": "local", "law_name": row["name"],
-                    "art_no": art, "title": a["title"] or "",
-                    "chap": a["chap"] or "", "body": a["body"],
-                    "mst": row["mst"], "law_id": row["law_id"],
-                    "enforced": row["enforced"], "pending": row["pending"],
-                    "cls": row["cls"]}
+            return _fill({"found": True, "source": "local",
+                          "law_name": row["name"],
+                          "art_no": art, "title": a["title"] or "",
+                          "chap": a["chap"] or "", "body": a["body"],
+                          "mst": row["mst"], "law_id": row["law_id"],
+                          "enforced": row["enforced"],
+                          "pending": row["pending"], "cls": row["cls"]})
     # 자치법규(파일/API 등록)
     for h in hints:
         for lrow in d.local_search(h):
             la = d.local_find(lrow["id"], art)
             if la:
-                return {"found": True, "source": "local-reg",
-                        "law_name": lrow["name"], "art_no": art,
-                        "title": la["title"] or "", "chap": "",
-                        "body": la["body"], "mst": None, "law_id": None,
-                        "enforced": "", "pending": 0,
-                        "cls": lrow["kind"] or "자치법규"}
+                return _fill({"found": True, "source": "local-reg",
+                              "law_name": lrow["name"], "art_no": art,
+                              "title": la["title"] or "", "chap": "",
+                              "body": la["body"], "mst": None,
+                              "law_id": None,
+                              "enforced": "", "pending": 0,
+                              "cls": lrow["kind"] or "자치법규"})
     # 라이브(OC 키가 있을 때만): fetch 후 로컬에 캐시 → 이후 즉시
     if api is not None:
         for h in hints:
@@ -65,13 +96,15 @@ def resolve(d, hint: str, art: str, api=None, hints=None):
                               action="on-demand")
             for x in arts:
                 if _art_key(x["art_no"]) == art:
-                    return {"found": True, "source": "live",
-                            "law_name": law["name"], "art_no": art,
-                            "title": x.get("title") or "",
-                            "chap": x.get("chap") or "", "body": x["body"],
-                            "mst": law["mst"], "law_id": law["law_id"],
-                            "enforced": law["enforced"],
-                            "pending": law["pending"], "cls": law["cls"]}
+                    return _fill({"found": True, "source": "live",
+                                  "law_name": law["name"], "art_no": art,
+                                  "title": x.get("title") or "",
+                                  "chap": x.get("chap") or "",
+                                  "body": x["body"], "mst": law["mst"],
+                                  "law_id": law["law_id"],
+                                  "enforced": law["enforced"],
+                                  "pending": law["pending"],
+                                  "cls": law["cls"]})
     return {"found": False}
 
 
