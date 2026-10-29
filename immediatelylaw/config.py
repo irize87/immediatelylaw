@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
-"""설정 저장. OC(API 인증키)는 Windows DPAPI로 암호화해 저장한다."""
+"""설정 저장. OC(API 인증키)는 Windows DPAPI로 암호화해 저장한다.
+Linux(발행 서버)에서는 DPAPI가 없어 평문 base64 폴백이며, 발행자는
+환경변수 IMMEDIATELYLAW_OC를 우선 사용한다."""
 import base64
-import ctypes
-import ctypes.wintypes
 import json
 import os
 import sys
+
+if sys.platform == "win32":
+    import ctypes
+    import ctypes.wintypes
 
 APP_NAME = "immediatelylaw"
 _OLD_APP_NAME = "임시로"
@@ -47,43 +51,45 @@ DEFAULTS = {
                                    # 배포 데이터 주소(manifest.json 상위)
 }
 
-# ---------------- DPAPI ----------------
-_DATA_BLOB_FLAG_CRYPTPROTECT_UI_FORBIDDEN = 0x01
+# ---------------- DPAPI (Windows 전용) ----------------
+if sys.platform == "win32":
+    _DATA_BLOB_FLAG_CRYPTPROTECT_UI_FORBIDDEN = 0x01
 
+    class _DATA_BLOB(ctypes.Structure):
+        _fields_ = [("cbData", ctypes.wintypes.DWORD),
+                    ("pbData", ctypes.POINTER(ctypes.c_char))]
 
-class _DATA_BLOB(ctypes.Structure):
-    _fields_ = [("cbData", ctypes.wintypes.DWORD),
-                ("pbData", ctypes.POINTER(ctypes.c_char))]
+    def _dpapi(data: bytes, encrypt: bool) -> bytes:
+        crypt32 = ctypes.windll.crypt32
+        kernel32 = ctypes.windll.kernel32
+        buf = ctypes.create_string_buffer(data, len(data))
+        blob_in = _DATA_BLOB(len(data),
+                             ctypes.cast(buf, ctypes.POINTER(ctypes.c_char)))
+        blob_out = _DATA_BLOB()
+        fn = (crypt32.CryptProtectData if encrypt
+              else crypt32.CryptUnprotectData)
+        ok = fn(ctypes.byref(blob_in), None, None, None, None,
+                _DATA_BLOB_FLAG_CRYPTPROTECT_UI_FORBIDDEN,
+                ctypes.byref(blob_out))
+        if not ok:
+            raise OSError("DPAPI 호출 실패")
+        try:
+            return ctypes.string_at(blob_out.pbData, blob_out.cbData)
+        finally:
+            kernel32.LocalFree(blob_out.pbData)
 
+    def encrypt_str(s: str) -> str:
+        return base64.b64encode(_dpapi(s.encode("utf-8"), True)).decode()
 
-def _dpapi(data: bytes, encrypt: bool) -> bytes:
-    crypt32 = ctypes.windll.crypt32
-    kernel32 = ctypes.windll.kernel32
-    buf = ctypes.create_string_buffer(data, len(data))
-    blob_in = _DATA_BLOB(len(data),
-                         ctypes.cast(buf, ctypes.POINTER(ctypes.c_char)))
-    blob_out = _DATA_BLOB()
-    fn = crypt32.CryptProtectData if encrypt else crypt32.CryptUnprotectData
-    ok = fn(ctypes.byref(blob_in), None, None, None, None,
-            _DATA_DATA_BLOB_FLAGS(encrypt), ctypes.byref(blob_out))
-    if not ok:
-        raise OSError("DPAPI 호출 실패")
-    try:
-        return ctypes.string_at(blob_out.pbData, blob_out.cbData)
-    finally:
-        kernel32.LocalFree(blob_out.pbData)
+    def decrypt_str(b64: str) -> str:
+        return _dpapi(base64.b64decode(b64), False).decode("utf-8")
 
+else:  # Linux 등: 마크용 base64(암호화 아님) — 서버는 env 키를 사용
+    def encrypt_str(s: str) -> str:
+        return base64.b64encode(s.encode("utf-8")).decode()
 
-def _DATA_DATA_BLOB_FLAGS(encrypt: bool) -> int:
-    return _DATA_BLOB_FLAG_CRYPTPROTECT_UI_FORBIDDEN
-
-
-def encrypt_str(s: str) -> str:
-    return base64.b64encode(_dpapi(s.encode("utf-8"), True)).decode()
-
-
-def decrypt_str(b64: str) -> str:
-    return _dpapi(base64.b64decode(b64), False).decode("utf-8")
+    def decrypt_str(b64: str) -> str:
+        return base64.b64decode(b64).decode("utf-8")
 
 
 # ---------------- 설정 ----------------
