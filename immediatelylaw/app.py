@@ -12,7 +12,8 @@ from PySide6.QtGui import (QBrush, QColor, QCursor, QFont, QIcon,
 from PySide6.QtWidgets import (QApplication, QMenu, QMessageBox,
                                QProgressDialog, QSystemTrayIcon, QWidget)
 
-from . import __version__, APP_TITLE, localreg, resolver, theme
+from . import (__version__, APP_TITLE, localreg, refparse, resolver,
+               theme)
 from .config import get_config
 from .db import get_db
 from .lawapi import LawApi
@@ -168,20 +169,28 @@ class ImmediatelyLaw(QObject):
         cites = payload.get("cites") or []
         if not cites:
             return
-        c = cites[0]
-        res = resolver.resolve(self.db, c["law"], c["art"], None,
-                               hints=c.get("law_all"))
-        if res.get("found"):
-            if res["source"] == "local":
-                self.overlay.show_result(res)
-            elif res["source"] == "local-reg":
-                self.overlay.show_result(res)
-            else:
-                self.overlay.show_result(res)
-            if len(cites) > 1:
+        c0 = cites[0]
+        # 같은 법령 계열(본법 기준) 인용은 이어서 함께 표시한다.
+        # 예: 「도서관법」 제33조 및 같은 법 시행령 제19조
+        base0 = refparse.base_name(c0["law"])
+        group = [c for c in cites
+                 if refparse.base_name(c["law"]) == base0][:3]
+        found = []
+        for c in group:
+            r = resolver.resolve(self.db, c["law"], c["art"], None,
+                                 hints=c.get("law_all"))
+            if r.get("found"):
+                found.append(r)
+        if found:
+            self.overlay.show_results(found)
+            self._remember_law(found[0]["law_name"])
+            rest = len(cites) - len(group)
+            if rest > 0:
                 self.overlay.set_state(
-                    f"이 텍스트에 인용 {len(cites)}건 — 첫 인용 표시")
+                    f"이 텍스트에 인용 {len(cites)}건 — 같은 법령 계열 "
+                    f"{len(found)}건 표시")
             return
+        c = c0
         # 미보유: OC 키 있으면 라이브 폴백
         if self.api is not None:
             from .workers import ResolveWorker
@@ -205,9 +214,17 @@ class ImmediatelyLaw(QObject):
     def _on_live_resolved(self, res: dict):
         if res.get("found"):
             self.overlay.show_result(res)
+            self._remember_law(res["law_name"])
         else:
             self.overlay.set_badge("check", "(확인)")
             self.overlay.set_state("법제처에서도 찾을 수 없습니다.")
+
+    def _remember_law(self, law_name: str):
+        """마지막으로 표시한 본법 이름을 기억 — '같은 법' 단독 인용 해석에 쓰인다."""
+        b = refparse.base_name(law_name)
+        if b and self.cfg.get("last_law") != b:
+            self.cfg["last_law"] = b
+            self.cfg.save()
 
     # ---------- 검증 ----------
     def _start_verify(self, res: dict):

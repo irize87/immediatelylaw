@@ -170,6 +170,10 @@ class SearchWindow(QWidget):
 
     def _show_result(self, res, note=""):
         self._last_res = res
+        b = refparse.base_name(res["law_name"])
+        if b and self.cfg.get("last_law") != b:
+            self.cfg["last_law"] = b
+            self.cfg.save()
         src = res.get("source")
         self._push_history(res)
         self._render()

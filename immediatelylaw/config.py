@@ -47,6 +47,7 @@ DEFAULTS = {
     "autostart": True,             # Windows 시작 시 자동 실행(기본 켬)
     "clipboard_paused": False,
     "last_update_check": "",       # 마지막 개정 점검(YYYYMMDDHHMM)
+    "last_law": "",                # 마지막 표시/조회 본법('같은 법' 해석용)
     "data_base_url": "https://raw.githubusercontent.com/nazgregory/immediatelylaw-data/dist",
                                    # 배포 데이터 주소(manifest.json 상위)
 }

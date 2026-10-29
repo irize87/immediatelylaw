@@ -54,7 +54,7 @@ class ClipboardWatcher(QObject):
         h = hashlib.sha1(text.encode("utf-8", "replace")).hexdigest()
         if now - _self_copy["t"] < 1.0 and h == _self_copy["h"]:
             return  # 우리 프로그램이 복사한 것
-        cites = refparse.parse(text)
+        cites = refparse.parse(text, prev_law=self.cfg.get("last_law") or "")
         _dbg("parsed cites:", [(c['law'], c['art']) for c in cites])
         if cites:
             self.citation.emit({"cites": cites, "text": text})

@@ -32,6 +32,14 @@ BRACKET_RE = re.compile(
 
 NAME_CHAR = re.compile(r"^[\u3131-\uD79A0-9a-zA-Z·\-ー\(\)\.]+$")
 
+# 법령명에서 위임 법령 접미사를 벗긴 '본법' 이름으로 만든다
+DELEG_RE = re.compile(r"\s*(시행령|시행규칙|시행규정|시행준칙)$")
+
+
+def base_name(name: str) -> str:
+    """'○○법 시행령' → '○○법'. 본법 이름 반환('같은 법' 해석의 기준)."""
+    return DELEG_RE.sub("", name or "").strip()
+
 
 def _ends_suffix(word: str) -> bool:
     return any(word.endswith(s) for s in SUFFIXES)
@@ -83,13 +91,15 @@ def _back_name(text_before: str):
     return cands
 
 
-def parse(text: str):
-    """후보 인용 목록. [{law, art, title, index}] (문서 등장순)."""
+def parse(text: str, prev_law: str = ""):
+    """후보 인용 목록. [{law, art, title, index}] (문서 등장순).
+    prev_law: 직전 조회/표시로 기억된 본법 이름 — 텍스트 단독으로
+    '같은 법 시행령 제19조'처럼만 표기된 인용을 해석할 때 쓴다."""
     if not text:
         return []
     out = []
     seen = set()
-
+    last_law = base_name(prev_law) or None
     def add(law, art, idx, law_all=None):
         key = (law, art)
         if key in seen:
@@ -104,7 +114,6 @@ def parse(text: str):
         bart = bm.group(2) + (f"의{bm.group(3)}" if bm.group(3) else "")
         bracket_map[bm.start(2)] = (bm.group(1).strip(), bart)
 
-    last_law = None
     for m in ART_RE.finditer(text):
         art = m.group(1) + (f"의{m.group(2)}" if m.group(2) else "")
         start = m.start()
@@ -115,16 +124,21 @@ def parse(text: str):
         hit = bracket_map.get(m.start(1))
         if hit and hit[1] == art:
             law = hit[0]
-        # 2) 같은 법 / 동법
-        if not law:
-            if re.search(r"(같은\s*법|동\s*법|동\s*법령|같은\s*법령)\s*$", ctx):
-                law = last_law
-        # 3) 바로 앞 명사축합(후보 여러 개)
-        if not law:
+        # 2) 같은 법 / 동법 (+ 시행령·시행규칙 변형): "같은 법 시행령 제19조"
+        mm = re.search(
+            r"(?:같은\s*법|동\s*법|같은\s*법령|동\s*법령)\s*"
+            r"(시행령|시행규칙|시행규정)?\s*$", ctx)
+        if mm and last_law:
+            sfx = mm.group(1) or ""
+            law = last_law + (f" {sfx}" if sfx else "")
+            cands = [law]
+        # 3) 바로 앞 명사축합(후보 여러 개). '같은 법' 어구인데 직전
+        #    법령이 없으면 축합 시도로 잘못된 법령을 잡지 않고 건너뛴다.
+        if not law and not mm:
             cands = _back_name(ctx)
             law = cands[0] if cands else None
         if law:
-            last_law = law
+            last_law = base_name(law)
             add(law, art, start, cands or [law])
     # 제목 추출 보강: 제N조(타이틀)
     title_re = re.compile(

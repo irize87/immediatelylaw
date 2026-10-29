@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
 
 from . import theme
+from .refparse import base_name
 
 CIRCLED = "\u2460\u2461\u2462\u2463\u2464\u2465\u2466\u2467\u2468\u2469" \
           "\u246a\u246b\u246c\u246d\u246e\u246f\u2470\u2471\u2472\u2473"
@@ -147,6 +148,38 @@ def article_html(res: dict, pt: float = 11, dark: bool = False) -> str:
     return chap_html + inner
 
 
+def section_head(res: dict, pt: float, dark: bool) -> str:
+    """조문 구간 머리: 법령명 제N조(제목) — 굵게."""
+    fg = "#e8eaed" if dark else "#20242b"
+    style = ("font-family:'Malgun Gothic';font-size:%gpt;line-height:1.62;"
+             % pt)
+    head = f"{res['law_name']} 제{res['art_no']}조"
+    if res.get("title"):
+        head += f"({res['title']})"
+    if res.get("source") == "local-reg":
+        head += "  [자치]"
+    return (f'<div style="{style}font-weight:bold;color:{fg};'
+            f'margin:0 0 2px 0;">{html.escape(head)}</div>')
+
+
+def articles_html_multi(res_list, pt: float = 11, dark: bool = False) -> str:
+    """법+시행령 등 여러 조문을 이어서 표시 — 구간마다 법령명 헤더와
+    구분선(테마 색)으로 시각적 분리. 한 개면 기존 렌더와 동일."""
+    if not res_list:
+        return ""
+    if len(res_list) == 1:
+        return article_html(res_list[0], pt, dark)
+    bd = "#39414b" if dark else "#d7dbe0"
+    parts = []
+    for i, res in enumerate(res_list):
+        if i:
+            parts.append(f'<div style="border-top:1px solid {bd};'
+                         f'margin:13px 0 9px 0;"></div>')
+        parts.append(section_head(res, pt, dark))
+        parts.append(article_html(res, pt, dark))
+    return "".join(parts)
+
+
 class OverlayCard(QWidget):
     copy_requested = Signal(str)
     verify_requested = Signal(dict)
@@ -156,6 +189,7 @@ class OverlayCard(QWidget):
         self.cfg = cfg
         self._drag = None
         self._current = None
+        self._current_list = None
         self._hide_timer = QTimer(self, singleShot=True)
         self._hide_timer.timeout.connect(self.hide)
 
@@ -232,9 +266,9 @@ class OverlayCard(QWidget):
             f"QPushButton:hover{{background:{p['hover']};color:{p['fg']};}}"
             f"QPushButton:pressed{{background:{p['border']};}}")
         self.footer.apply_palette(p)
-        if self._current is not None:
-            self.tv.setHtml(article_html(self._current, self._pt(),
-                                         p["dark"]))
+        if self._current_list:
+            self.tv.setHtml(articles_html_multi(
+                self._current_list, self._pt(), p["dark"]))
         self._apply_badge()
 
     def _apply_badge(self):
@@ -253,14 +287,15 @@ class OverlayCard(QWidget):
 
     # ---------- 표시 ----------
     def show_result(self, res: dict, note: str = ""):
+        self.show_results([res], note)
+
+    def show_results(self, res_list, note: str = ""):
+        """조문 1건 또는 여러 건(법+시행령 등)을 이어서 표시."""
+        res = res_list[0]
         self._current = res
+        self._current_list = list(res_list)
         self._esc_at = 0.0
-        head = f"{res['law_name']} 제{res['art_no']}조"
-        if res.get("title"):
-            head += f"({res['title']})"
-        if res.get("source") == "local-reg":
-            head += "  [자치]"
-        self.lb_title.setText(head)
+        self.lb_title.setText(self._combined_title(res_list))
         src = res.get("source")
         if src == "local-reg":
             self.set_badge("neutral", "(자치)")
@@ -268,12 +303,31 @@ class OverlayCard(QWidget):
             self.set_badge("check", "(시행예정)")
         else:
             self.set_badge("neutral", "(조회)")
-        self.tv.setHtml(article_html(res, self._pt(),
-                                     theme.palette(self.cfg)["dark"]))
+        self.tv.setHtml(articles_html_multi(
+            res_list, self._pt(), theme.palette(self.cfg)["dark"]))
         self.lb_state.setText(note)
         self._place_and_show()
         if res.get("source") != "local-reg":
             self.verify_requested.emit(res)
+
+    def _combined_title(self, res_list) -> str:
+        def head1(res):
+            h = f"{res['law_name']} 제{res['art_no']}조"
+            if res.get("title"):
+                h += f"({res['title']})"
+            if res.get("source") == "local-reg":
+                h += "  [자치]"
+            return h
+        if len(res_list) <= 1:
+            return head1(res_list[0])
+        b0 = base_name(res_list[0]["law_name"])
+        names = [head1(res_list[0])]
+        for res in res_list[1:]:
+            nm = res["law_name"]
+            if base_name(nm) == b0:
+                nm = "같은 법 " + nm[len(b0):].strip()
+            names.append(f"{nm} 제{res['art_no']}조")
+        return "  ·  ".join(names)
 
     # ---------- 글자크기 ----------
     def _pt(self) -> int:
@@ -284,9 +338,9 @@ class OverlayCard(QWidget):
 
     def _change_font(self, pt: int):
         """FooterBar(font_step) 수신: 현재 결과를 새 크기로 다시 렌더."""
-        if self._current:
-            self.tv.setHtml(article_html(self._current, pt,
-                                         theme.palette(self.cfg)["dark"]))
+        if self._current_list:
+            self.tv.setHtml(articles_html_multi(
+                self._current_list, pt, theme.palette(self.cfg)["dark"]))
         self._reflow()
 
     def _reflow(self):
@@ -366,9 +420,21 @@ class OverlayCard(QWidget):
 
     # ---------- 동작 ----------
     def _on_copy(self):
-        if self._current:
-            self.copy_requested.emit(self._current["body"])
-            self.lb_state.setText("클립보드에 복사했습니다.")
+        lst = self._current_list or ([self._current] if self._current else [])
+        if not lst:
+            return
+        if len(lst) == 1:
+            text = lst[0]["body"]
+        else:
+            blocks = []
+            for res in lst:
+                head = f"{res['law_name']} 제{res['art_no']}조"
+                if res.get("title"):
+                    head += f"({res['title']})"
+                blocks.append(f"{head}\n{res['body']}")
+            text = "\n\n".join(blocks)
+        self.copy_requested.emit(text)
+        self.lb_state.setText("클립보드에 복사했습니다.")
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Q:
