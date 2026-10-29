@@ -9,6 +9,16 @@
   <img src="https://img.shields.io/badge/version-v1.3.5-blue" alt="v1.3.5">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Windows 10/11">
+  <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
+  <img src="https://img.shields.io/badge/Python-PSF-green" alt="Python PSF">
+  <img src="https://img.shields.io/badge/PySide6-v6.12.0-blue" alt="PySide6">
+  <img src="https://img.shields.io/badge/PySide6-LGPL--3.0-green" alt="PySide6 LGPL-3.0">
+  <img src="https://img.shields.io/badge/requests-v2.34.2-blue" alt="requests">
+  <img src="https://img.shields.io/badge/requests-Apache--2.0-green" alt="requests Apache-2.0">
+  <img src="https://img.shields.io/badge/pypdf-v6.21.3-blue" alt="pypdf">
+  <img src="https://img.shields.io/badge/pypdf-BSD--3--Clause-green" alt="pypdf BSD-3-Clause">
+  <img src="https://img.shields.io/badge/defusedxml-v0.7.1-blue" alt="defusedxml">
+  <img src="https://img.shields.io/badge/defusedxml-PSF-green" alt="defusedxml PSF">
 </p>
 
 **즉시로**(Immediately Law)는 대한민국 법령을 가장 빠르게 확인할 수 있는 프로그램입니다.
@@ -29,7 +39,18 @@
 
 ## 설치 방법
 
-GitHub **[Releases](../../releases)** 에서 zip을 받아 압축을 풉니다. 
+### 다운로드 (둘 중 편한 곳)
+
+| 버전 | GitHub Releases | GitLab 직접 다운로드 |
+|---|---|---|
+| 온라인(앱만) | [Releases](https://github.com/nazgregory/ImmediatelyLaw/releases) | [ImmediatelyLaw-online.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/download/ImmediatelyLaw-online.zip) |
+| 오프라인(앱+데이터) | [Releases](https://github.com/nazgregory/ImmediatelyLaw/releases) | [ImmediatelyLaw-offline.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/download/ImmediatelyLaw-offline.zip) |
+
+> GitHub가 가장 최신이며, GitLab은 **`download` 브랜치**에 같은 설치 zip을 두어
+> 릴리즈 화면 없이도 파일을 바로 받을 수 있습니다. 링크가 열리지 않으면 저장소에서
+> 브랜치를 `download`로 바꾼 뒤 파일의 [Raw]를 누르세요.
+
+zip을 받아 압축을 풉니다. 
 
 설치 프로그램이 필요 없는 포터블 앱입니다. 
 
@@ -141,18 +162,7 @@ python run.py            # 창 없이 실행: pythonw run.py
 
 이 프로그램이 사용하는 오픈소스 라이브러리와 라이선스입니다. (배지는 현재 릴리즈 동봉 버전)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
-  <img src="https://img.shields.io/badge/Python-PSF-green" alt="Python PSF">
-  <img src="https://img.shields.io/badge/PySide6-v6.12.0-blue" alt="PySide6">
-  <img src="https://img.shields.io/badge/PySide6-LGPL--3.0-green" alt="PySide6 LGPL-3.0">
-  <img src="https://img.shields.io/badge/requests-v2.34.2-blue" alt="requests">
-  <img src="https://img.shields.io/badge/requests-Apache--2.0-green" alt="requests Apache-2.0">
-  <img src="https://img.shields.io/badge/pypdf-v6.21.3-blue" alt="pypdf">
-  <img src="https://img.shields.io/badge/pypdf-BSD--3--Clause-green" alt="pypdf BSD-3-Clause">
-  <img src="https://img.shields.io/badge/defusedxml-v0.7.1-blue" alt="defusedxml">
-  <img src="https://img.shields.io/badge/defusedxml-PSF-green" alt="defusedxml PSF">
-</p>
+
 
 | 라이브러리 | 동봉 버전 | 용도 | 라이선스 |
 |---|---|---|---|
