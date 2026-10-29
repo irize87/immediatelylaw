@@ -15,7 +15,9 @@ import re
 import time
 import zlib
 import zipfile
-import xml.etree.ElementTree as ET
+from defusedxml import DefusedXmlException
+from defusedxml.ElementTree import fromstring as XML_fromstring
+from xml.etree.ElementTree import ParseError as XMLParseError
 
 from .db import Database, norm_name, DATA_DIR
 
@@ -68,7 +70,7 @@ def _read_zip_xml(raw: bytes) -> str:
             for n in sections:
                 if z.getinfo(n).file_size > 50_000_000:
                     raise ValueError("본문 XML이 비정상적으로 큽니다.")
-                root = ET.fromstring(z.read(n))
+                root = XML_fromstring(z.read(n))
                 for el in root.iter():
                     if _local(el.tag) == "p":
                         t = "".join(x.text or "" for x in el.iter()
@@ -79,7 +81,7 @@ def _read_zip_xml(raw: bytes) -> str:
         if "word/document.xml" in names:               # docx
             if z.getinfo("word/document.xml").file_size > 50_000_000:
                 raise ValueError("본문 XML이 비정상적으로 큽니다.")
-            root = ET.fromstring(z.read("word/document.xml"))
+            root = XML_fromstring(z.read("word/document.xml"))
             for p in root.iter():
                 if _local(p.tag) == "p":
                     lines.append("".join(t.text or "" for t in p.iter()
@@ -223,14 +225,14 @@ def _read_ole(raw: bytes) -> str:
                                    or b"hwp" in data[:2000].lower()
                                    or b"<hp:" in data[:200]):
             try:
-                root = ET.fromstring(data)
+                root = XML_fromstring(data)
                 for el in root.iter():
                     if _local(el.tag) == "p":
                         t = "".join(x.text or "" for x in el.iter()
                                     if _local(x.tag) == "t")
                         if t:
                             texts.append(t)
-            except ET.ParseError:
+            except (XMLParseError, DefusedXmlException):
                 pass
         i += 1
     if texts:

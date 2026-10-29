@@ -120,7 +120,7 @@ GitHub **[Releases](../../releases)** 에서 zip을 받아 압축을 풉니다.
 ```
 git clone https://github.com/nazgregory/ImmediatelyLaw.git
 cd ImmediatelyLaw
-pip install PySide6 requests pypdf
+pip install PySide6 requests pypdf defusedxml
 python run.py            # 창 없이 실행: pythonw run.py
 ```
 
