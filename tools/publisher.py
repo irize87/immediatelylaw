@@ -111,8 +111,23 @@ def cmd_status(_args):
     print(f"  미완/실패 표시: {left}")
 
 
+def _check_api(api: LawApi):
+    """수집 전 API 도달성 확인. 미등록 IP면 법제처가 HTML 차단 페이지를 돌려보낸다."""
+    try:
+        ok = api.ping()
+    except LawApiError as e:
+        print("API 연결 실패 (IP 차단 가능성 높음):", e)
+        print("→ open.law.go.kr 공동활용 신청에 이 머신의 egress IP가 등록되어 "
+              "있는지 확인하세요.")
+        sys.exit(3)
+    if not ok:
+        print("API 응답이 비어 있습니다 — OC 키/IP 등록을 확인하세요.")
+        sys.exit(3)
+
+
 def cmd_update(_args):
     api = _api()
+    _check_api(api)
     d = Database()
     print("현행 목록 재열거…")
     todo = list(api.iter_current_laws())

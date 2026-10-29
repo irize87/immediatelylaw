@@ -22,7 +22,13 @@ fi
 LOG="data/daily.log"
 {
     echo "===== $(date -Is) 발행 시작 ====="
-    .venv/bin/python -m tools.publisher update
+    if ! .venv/bin/python -m tools.publisher update; then
+        echo "!! update 실패 — 현재 egress IP: \
+$(curl -s -m 10 https://checkip.amazonaws.com || echo 알수없음) \
+(open.law.go.kr 등록 IP와 대조)"
+        echo "===== $(date -Is) 중단 ====="
+        exit 1
+    fi
     .venv/bin/python -m tools.publisher package
 
     # dist 브랜치에는 최신 스냅샷만 남긴다(앱은 스냅샷 전체만 사용)
