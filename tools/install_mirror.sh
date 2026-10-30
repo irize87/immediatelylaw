@@ -2,14 +2,13 @@
 # 즉시로 배포 미러 1회 설치(서버 root) — 자체서명 인증서 + systemd 서비스.
 # 사용: sudo bash tools/install_mirror.sh
 set -e
-APP="${HOME}/ImmediatelyLaw"
+SUDO_USER_HOME="$(getent passwd "${SUDO_USER:-ubuntu}" | cut -d: -f6)"
+APP="${SUDO_USER_HOME}/ImmediatelyLaw"
 ETC=/etc/immediatelylaw-mirror
-DIR="${IMMEDIATELYLAW_MIRROR_DIR:-$HOME/immediatelylaw-mirror}"
+DIR="${SUDO_USER_HOME}/immediatelylaw-mirror"
 IP="${IMMEDIATELYLAW_MIRROR_IP:-152.67.205.216}"
 
 if [ "$(id -u)" != "0" ]; then echo "root로 실행하세요(sudo)."; exit 1; fi
-SUDO_USER_HOME="$(getent passwd "${SUDO_USER:-ubuntu}" | cut -d: -f6)"
-DIR="${SUDO_USER_HOME}/immediatelylaw-mirror"
 
 mkdir -p "$ETC" "$DIR"
 if [ ! -f "$ETC/cert.pem" ]; then
