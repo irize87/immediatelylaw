@@ -22,3 +22,6 @@ data/_distrepo/
 data/regulations/*
 !data/regulations/*.hwpx
 !data/regulations/README.md
+
+out/
+
