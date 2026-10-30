@@ -58,6 +58,10 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 CERT_PINS = {
     "152.67.205.216": "590abe364c339a0dcdbe4ccfc82ea16179637768f1f2"
                       "7caa71cdc11c882d08d8",
+    # 운영자 PC는 테일넷 경로로도 같은 미러에 접근한다(같은 인증서).
+    # 이 주소는 배포 채널 기본값에 없고 사용자가 설정한 경우에만 쓰인다.
+    "100.109.191.50": "590abe364c339a0dcdbe4ccfc82ea16179637768f1f2"
+                      "7caa71cdc11c882d08d8",
 }
 _pin_cache = {}
 
