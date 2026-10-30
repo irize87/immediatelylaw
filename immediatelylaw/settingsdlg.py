@@ -477,11 +477,9 @@ class SettingsDialog(QDialog):
         td = "color:#6b7280;padding-right:12px;"
         info = QLabel(
             "<table cellspacing='0' cellpadding='2'>"
-            f"<tr><td style='{td}'>제작자</td><td>홍성민(서초구청)</td></tr>"
+            f"<tr><td style='{td}'>제작자</td><td>홍성민 주무관(서초구청)</td></tr>"
             f"<tr><td style='{td}'>연락처</td>"
-            "<td>" + a("mailto:nazgregory@gmail.com", "nazgregory@gmail.com")
-            + "<br>"
-            + a("mailto:irize@seocho.go.kr", "irize@seocho.go.kr")
+            "<td>" + a("mailto:irize@seocho.go.kr", "irize@seocho.go.kr")
             + "<br>02-2155-6089</td></tr>"
             f"<tr><td style='{td}'>소스 코드</td><td>"
             + a("https://github.com/nazgregory/ImmediatelyLaw",
