@@ -16,7 +16,8 @@ import re
 import socketserver
 import ssl
 
-SAFE = re.compile(r"^[\w.\-]+\.?(json|xz|zip|txt|json\.xz)?$")
+SAFE = re.compile(
+    r"^[\w.\-]+\.(json|xz|zip|txt|html|png|jpg|jpeg|svg|ico|mp4)$")
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -35,6 +36,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         import os
         import urllib.parse
         rel = urllib.parse.urlparse(self.path).path.lstrip("/")
+        if rel in ("", "/"):
+            rel = "index.html"          # 루트 = 배포·다운로드 페이지
         if not SAFE.match(rel):
             self.send_error(404, "not found")
             return None
@@ -49,6 +52,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if p.endswith("manifest.json") or p.endswith("app-latest.json"):
             self.send_header("Cache-Control", "no-cache")
         elif p.startswith("delta-") or p.endswith(".db.xz"):
+            self.send_header("Cache-Control", "max-age=86400")
+        elif p.endswith(".html") or p in ("", "/"):
+            self.send_header("Cache-Control", "no-cache")
+        elif p.endswith((".png", ".jpg", ".jpeg", ".mp4", ".ico", ".svg")):
             self.send_header("Cache-Control", "max-age=86400")
         super().end_headers()
 
