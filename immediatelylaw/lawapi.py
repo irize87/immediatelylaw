@@ -169,16 +169,26 @@ class LawApi:
         for u in zm.findall("조문단위"):
             content = (u.findtext("조문내용") or "").strip()
             kind = (u.findtext("조문여부") or "").strip()
-            # 항(①②…)은 조문단위 자식으로 분리 제공 → 본문에 병합
-            hangs = u.findall("항")
-            if hangs:
-                extra = []
-                for h in hangs:
-                    hc = (h.findtext("항내용") or "").strip()
-                    if hc and hc not in content:
-                        extra.append(hc)
-                if extra:
-                    content = "\n".join([content] + extra)
+            # 항/호/목/양 내용은 조문내용 아래 트리(항>호>목)로 분리 제공된다.
+            # 조문내용에는 대개 첫머리만 들어 있으므로, 문서 순서대로
+            # 모든 *내용 자손을 보충한다(이미 포함된 텍스트는 중복 제외).
+            base_norm = re.sub(r"\s+", "", content)
+            extra = []
+            for el in u.iter():
+                tag = el.tag
+                if tag == "조문내용" or not tag.endswith("내용"):
+                    continue
+                t = (el.text or "").strip()
+                if not t:
+                    continue
+                if not re.sub(r"\s+", "", t) in base_norm:
+                    extra.append(t)
+            if extra:
+                content = "\n".join([content] + extra)
+            ref = (u.findtext("조문참고자료") or "").strip()
+            if ref and not re.sub(r"\s+", "", ref) in re.sub(
+                    r"\s+", "", content):
+                content = content + "\n" + ref
             m = re.match(r"^제\s*([0-9]+)\s*조(?:의([0-9]+))?\s*(?:[（(]([^）)]*)[)）])?",
                          content)
             if m:

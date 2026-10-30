@@ -141,6 +141,14 @@ class FooterBar(QWidget):
         return b
 
 
+# 개정 이력 표기: <개정 2009.12.29>, <2013.8.6>, [전문개정 2010.6.8] 등
+_HIST_RE = re.compile(
+    r"&lt;(?:(?:개정|추가|삭제|휴면|제명개정|시행|폐지|복구|실효|신설|강화"
+    r"|전문개정|일부개정|조문번호변경|본문개정|이전제|단서개정)[^&]*"
+    r"|[0-9]{4}\.[0-9.,\s]*)&gt;"
+    r"|\[(?:전문개정|제정|일부개정|법률제[0-9-]+|시행)[^\]]*\]")
+
+
 def article_html(res: dict, pt: float = 11, dark: bool = False) -> str:
     """장·절 표기와 본문이 같은 폰트(맑은 고딕)·같은 크기로 렌더된다."""
     fg = "#e8eaed" if dark else "#20242b"
@@ -157,9 +165,21 @@ def article_html(res: dict, pt: float = 11, dark: bool = False) -> str:
         paras = [body.strip()]
     style = ("font-family:'Malgun Gothic';font-size:%gpt;line-height:1.62;"
              % pt)
-    inner = "".join(
-        f'<p style="margin:4px 0 4px 0;{style}color:{fg};">'
-        f'{html.escape(p)}</p>' for p in paras)
+    # 개정 이력 표기(<개정 …>, <2013.8.6>, [전문개정 …] 등)는 작고 옅게
+    hist_style = f"color:{fg2};font-size:{max(pt - 2, 8):g}pt;"
+    parts = []
+    for p in paras:
+        esc = _HIST_RE.sub(
+            lambda m: f'<span style="{hist_style}">{m.group(0)}</span>',
+            html.escape(p))
+        ml = "0"   # 호/목 들여쓰기로 계층을 시각화
+        if re.match(r"^\d+(?:의\d+)?[．.]", p):
+            ml = "14px"
+        elif re.match(r"^[가-하][．.]", p):
+            ml = "28px"
+        parts.append(f'<p style="margin:4px 0 4px {ml};{style}'
+                     f'color:{fg};">{esc}</p>')
+    inner = "".join(parts)
     chap = res.get("chap")
     chap_html = (f'<div style="{style}color:{fg2};margin-bottom:4px;">'
                  f'{html.escape(chap)}</div>') if chap else ""
