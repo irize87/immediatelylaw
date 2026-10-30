@@ -142,10 +142,10 @@ class FooterBar(QWidget):
 
 
 # 개정 이력 표기: <개정 2009.12.29>, <2013.8.6>, [전문개정 2010.6.8] 등
-_HIST_RE = re.compile(
-    r"&lt;(?:(?:개정|추가|삭제|휴면|제명개정|시행|폐지|복구|실효|신설|강화"
-    r"|전문개정|일부개정|조문번호변경|본문개정|이전제|단서개정)[^&]*"
-    r"|[0-9]{4}\.[0-9.,\s]*)&gt;"
+_HIST_RAW_RE = re.compile(
+    r"<(?:(?:개정|추가|삭제|휴면|제명개정|시행|폐지|복구|실효|신설|강화"
+    r"|전문개정|일부개정|조문번호변경|본문개정|이전제|단서개정)[^<]*"
+    r"|[0-9]{4}\.[0-9.,\s]*)>"
     r"|\[(?:전문개정|제정|일부개정|법률제[0-9-]+|시행)[^\]]*\]")
 
 
@@ -165,20 +165,27 @@ def article_html(res: dict, pt: float = 11, dark: bool = False) -> str:
         paras = [body.strip()]
     style = ("font-family:'Malgun Gothic';font-size:%gpt;line-height:1.62;"
              % pt)
-    # 개정 이력 표기(<개정 …>, <2013.8.6>, [전문개정 …] 등)는 작고 옅게
-    hist_style = f"color:{fg2};font-size:{max(pt - 2, 8):g}pt;"
+    # 개정 이력 표기(<개정 …>, [전문개정 …] 등)는 본문 단락에서 떼어
+    # 단락 바로 아래 작고 옅은 줄로 배치한다(본문이 먼저 보이게).
+    hpt = max(pt - 2, 8)
+    hstyle = ("font-family:'Malgun Gothic';font-size:%gpt;line-height:1.5;"
+              % hpt)
     parts = []
     for p in paras:
-        esc = _HIST_RE.sub(
-            lambda m: f'<span style="{hist_style}">{m.group(0)}</span>',
-            html.escape(p))
         ml = "0"   # 호/목 들여쓰기로 계층을 시각화
         if re.match(r"^\d+(?:의\d+)?[．.]", p):
             ml = "14px"
         elif re.match(r"^[가-하][．.]", p):
             ml = "28px"
-        parts.append(f'<p style="margin:4px 0 4px {ml};{style}'
-                     f'color:{fg};">{esc}</p>')
+        marks = _HIST_RAW_RE.findall(p)
+        p_text = _HIST_RAW_RE.sub("", p).strip() if marks else p
+        if p_text:
+            parts.append(f'<p style="margin:4px 0 4px {ml};{style}'
+                         f'color:{fg};">{html.escape(p_text)}</p>')
+        if marks:
+            line = "  ".join(m.strip() for m in marks)
+            parts.append(f'<p style="margin:0 0 4px {ml};{hstyle}'
+                         f'color:{fg2};">{html.escape(line)}</p>')
     inner = "".join(parts)
     chap = res.get("chap")
     chap_html = (f'<div style="{style}color:{fg2};margin-bottom:4px;">'
