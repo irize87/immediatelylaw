@@ -26,8 +26,8 @@ def bundled_snapshot():
     return sorted(cands)[-1] if cands else None
 
 
-MAX_XZ_BYTES = 200 * 1024 * 1024   # 압축 스냅샷 상한(현재 실측 ~21MB)
-MAX_DB_BYTES = 400 * 1024 * 1024   # 해제 후 DB 상한(현재 실측 ~110MB)
+MAX_XZ_BYTES = 400 * 1024 * 1024    # 압축 스냅샷 상한(실측 ~30MB)
+MAX_DB_BYTES = 900 * 1024 * 1024    # 해제 후 DB 상한(호·목 전문 복원 후 실측 ~412MB)
 
 
 def _https(url: str) -> str:
