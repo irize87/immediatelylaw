@@ -48,10 +48,11 @@ DEFAULTS = {
     "clipboard_paused": False,
     "last_update_check": "",       # 마지막 개정 점검(YYYYMMDDHHMM)
     "last_law": "",                # 마지막 표시/조회 본법('같은 법' 해석용)
-    "update_check": True,          # 프로그램 새 버전 알림(GitHub Releases)
+    "update_check": True,          # 프로그램 새 버전 알림(배포 채널›GitHub)
     "update_skip_ver": "",         # 사용자가 "알림 끄기"한 버전
     "data_base_url": "https://raw.githubusercontent.com/nazgregory/immediatelylaw-data/dist",
                                    # 배포 데이터 주소(manifest.json 상위)
+    "mirror_url": "",              # 추가 배포 채널(비우면 내장 미러까지만 사용)
 }
 
 # ---------------- DPAPI (Windows 전용) ----------------

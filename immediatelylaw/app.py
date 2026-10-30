@@ -262,12 +262,12 @@ class ImmediatelyLaw(QObject):
     def _update(self, auto=True):
         if self._progress is not None:
             return
-        base = self.cfg["data_base_url"]
-        if not base:
+        hosts = workers.data_host_list(self.cfg)
+        if not hosts:
             if not auto:
                 self.show_settings()
             return
-        w = UpdaterWorker(self.db, base)
+        w = UpdaterWorker(self.db, hosts)
         # QThread 래퍼가 지역변수면 함수 종료 후 GC되어
         # "Destroyed while running" qFatal 크래시가 난다. 참조 유지 필수.
         self._workers.append(w)
@@ -314,7 +314,8 @@ class ImmediatelyLaw(QObject):
         if self._app_upd is not None or self._dl is not None:
             return
         w = AppUpdateWorker(__version__,
-                            offline=bool(workers.bundled_snapshot()))
+                            offline=bool(workers.bundled_snapshot()),
+                            hosts=workers.data_host_list(self.cfg))
         self._app_upd = w
         self._workers.append(w)
         w.finished.connect(lambda: self._workers.remove(w)

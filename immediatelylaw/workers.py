@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""백그라운드 워커: 검증, 데이터 갱신(GitHub 배포), 온디맨드 수집."""
+"""백그라운드 워커: 검증, 데이터 갱신(멀티 채널·델타 우선), 온디맨드 수집."""
 import hashlib
+import json
 import lzma
 import os
 import tempfile
@@ -35,6 +36,100 @@ def _https(url: str) -> str:
     if not (url or "").lower().startswith("https://"):
         raise IOError("https 주소만 허용됩니다: " + (url or "")[:80])
     return url
+
+
+# ---------- 배포 채널(멀티 호스트 폴백) ----------
+# 같은 레이아웃(manifest.json / delta-*.json.xz / immediatelylaw-*.db.xz /
+# app-latest.json)을 배포하는 채널을 순서대로 시도한다. 한 채널이 죽어도
+# (저장소 정지·차단) 나머지 채널로 데이터·프로그램 업데이트가 계속된다.
+GH_DATA_BASE = ("https://raw.githubusercontent.com/nazgregory/"
+                "immediatelylaw-data/dist")
+MIRROR_BASE = "https://152.67.205.216"   # 자가 배포 미러(Oracle 서버, 자체서명)
+UA = "immediatelylaw-updater"
+
+# 고정(pinning) 채널은 의도적으로 verify=False + 사후 지문 검증 구조라
+# urllib3의 반복 경고가 로그를 오염시킨다. 본 앱은 verify=False를
+# 고정 호스트 외에는 쓰지 않는다.
+import urllib3  # noqa: E402
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# 자체서명 미러 인증서 고정: 호스트 → 인증서(DER) sha256.
+# 인증서 재생성 시 서버의 cert_hash.txt 값을 here로 옮겨 갱신한다.
+CERT_PINS = {
+    "152.67.205.216": "590abe364c339a0dcdbe4ccfc82ea16179637768f1f2"
+                      "7caa71cdc11c882d08d8",
+}
+_pin_cache = {}
+
+
+def _pin_ok(host: str, port: int = 443) -> bool:
+    """고정 대상 호스트는 별도 TLS 핸드셰이크로 인증서 지문을 확인한다."""
+    want = CERT_PINS.get(host or "")
+    if not want:
+        return True
+    key = (host, port)
+    if key in _pin_cache:
+        return _pin_cache[key]
+    ok = False
+    try:
+        import socket
+        import ssl as _ssl
+        ctx = _ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl.CERT_NONE
+        with socket.create_connection((host, port), timeout=8) as s:
+            with ctx.wrap_socket(s) as ss:
+                der = ss.getpeercert(True)
+        ok = hashlib.sha256(der).hexdigest() == want
+    except Exception:
+        ok = False
+    _pin_cache[key] = ok
+    return ok
+
+
+def _url_pin_ok(url: str) -> bool:
+    from urllib.parse import urlparse
+    u = urlparse(url)
+    return _pin_ok(u.hostname or "", u.port or 443)
+
+
+def _verify_flag(url: str) -> bool:
+    from urllib.parse import urlparse
+    return (urlparse(url).hostname or "") not in CERT_PINS
+
+
+def data_host_list(cfg) -> list:
+    """cfg 기준의 채널 순서 목록(비어 있음·중복 제거)."""
+    raw = [cfg.get("data_base_url") or GH_DATA_BASE, MIRROR_BASE,
+           cfg.get("mirror_url") or ""]
+    out = []
+    for u in raw:
+        u = (u or "").strip().rstrip("/")
+        if u and u not in out:
+            out.append(u)
+    return out
+
+
+def _fetch_any(hosts, rel: str, timeout=30, session=None):
+    """상대 경로 파일을 채널 목록에서 시도해 bytes로 반환."""
+    from urllib.parse import urlparse
+    errs = []
+    s = session or requests
+    for h in hosts:
+        url = _https(h.rstrip("/") + "/" + rel.lstrip("/"))
+        host = urlparse(url).hostname or ""
+        if not _url_pin_ok(url):
+            errs.append(f"{host}: 인증서 고정 검증 실패")
+            continue
+        try:
+            r = s.get(url, timeout=timeout,
+                      headers={"User-Agent": UA},
+                      verify=_verify_flag(url))
+            r.raise_for_status()
+            return r.content
+        except Exception as e:
+            errs.append(f"{host}: {e}")
+    raise IOError(" / ".join(errs) or "채널 없음")
 
 
 def _inflate(xz_path):
@@ -98,14 +193,18 @@ class VerifyWorker(QThread):
 
 
 class UpdaterWorker(QThread):
-    """GitHub(raw) 배포본으로 로컬 DB를 최신화. 네트워크 없으면 조용히 실패."""
+    """배포 채널 목록으로 로컬 DB를 최신화(델타 우선, 폴백 스냅샷)."""
     progress = Signal(str, int)          # message, percent(-1 =_indeterminate)
     done = Signal(bool, str)             # ok, message
     db_replaced = Signal(str)            # 새 DB 파일 경로(app에서 재오픈)
 
     def __init__(self, db, base_url, apply_deltas=True, parent=None):
         super().__init__(parent)
-        self.db, self.base_url = db, (base_url or "").rstrip("/")
+        self.db = db
+        if isinstance(base_url, str) or base_url is None:
+            base_url = [base_url] if base_url else []
+        self.hosts = [str(u).strip().rstrip("/") for u in base_url if u]
+        self.base_url = self.hosts[0] if self.hosts else ""
         self.apply_deltas = apply_deltas
 
     def run(self):
@@ -115,27 +214,33 @@ class UpdaterWorker(QThread):
             self.done.emit(False, f"갱신 실패: {e}")
 
     # ---- 내부 ----
-    def _get(self, url, stream=False, timeout=30):
-        r = requests.get(url, timeout=timeout, stream=stream,
-                         headers={"User-Agent": "immediatelylaw-updater"})
-        r.raise_for_status()
-        return r
-
     def _run(self):
-        if not self.base_url:
+        if not self.hosts:
             self.done.emit(False, "데이터 소스(URL)가 설정되지 않았습니다. "
                                   "설정 › 데이터에서 배포 주소를 입력하세요.")
             return
         try:
-            _https(self.base_url)
+            for h in self.hosts:
+                _https(h)
         except IOError as e:
             self.done.emit(False, str(e))
             return
         stats = self.db.stats()
         self.progress.emit("버전 정보 확인 중…", -1)
-        manifest = self._get(f"{self.base_url}/manifest.json").json()
-        if not manifest.get("snapshot", {}).get("file"):
-            self.done.emit(False, "manifest에 스냅샷 정보가 없습니다.")
+        manifest = None
+        for h in list(self.hosts):
+            try:
+                j = _fetch_any([h], "manifest.json", timeout=20)
+                m = json.loads(j.decode("utf-8"))
+                if m.get("snapshot", {}).get("file"):
+                    manifest = m
+                    self.base_url = h   # 이후 파일은 이 채널 우선
+                    break
+            except Exception:
+                continue
+        if manifest is None:
+            self.done.emit(False, "모든 채널에서 버전 정보를 받지 못했습니다 "
+                                  "(네트워크/차단 확인).")
             return
 
         need_snapshot = stats["laws"] == 0 or not self.apply_deltas
@@ -159,26 +264,25 @@ class UpdaterWorker(QThread):
                              f"(데이터 {manifest.get('data_ver','')})")
 
     def _try_deltas(self, manifest, local_ver):
-        """적용 성공 시 반영 건수(0 이상), 실패 시 -1."""
-        deltas = [d for d in manifest.get("deltas", [])
-                  if d.get("from", "") >= local_ver]
-        deltas.sort(key=lambda d: d["from"])
-        if not deltas:
+        """local_ver→목표까지 빈틈없는 델타 체인을 적용. 성공 시 반영 건수,
+        체인 불완전/무결성 실패 시 -1(호스트 내부에서 스냅샷 폴백)."""
+        deltas = sorted((d for d in manifest.get("deltas", [])
+                         if d.get("from") and d.get("to")),
+                        key=lambda d: (d["from"], d["to"]))
+        if not deltas or deltas[0]["from"] != local_ver:
             return -1
+        cur = local_ver
         total = 0
         for d in deltas:
-            f = d["file"]
+            if d["from"] != cur or not d.get("sha256"):
+                return -1                  # 체인 틈/해시 누락 → 스냅샷
             try:
-                self.progress.emit(f"개정 반영 {f} …", -1)
-                r = requests.get(_https(d.get("url") or f"{self.base_url}/{f}"),
-                                 timeout=60)
-                r.raise_for_status()
-                if d.get("sha256") and (
-                        hashlib.sha256(r.content).hexdigest()
-                        != d["sha256"]):
-                    return -1          # 무결성 실패 → 전체 스냅샷으로 전환
-                import json
-                payload = json.loads(lzma.decompress(r.content).decode("utf-8"))
+                self.progress.emit(f"개정 반영 {d['to']} …", -1)
+                content = _fetch_any([self.base_url] + self.hosts,
+                                     d["file"], timeout=60)
+                if hashlib.sha256(content).hexdigest() != d["sha256"]:
+                    return -1
+                payload = json.loads(lzma.decompress(content).decode("utf-8"))
                 from .db import norm_name
                 for item in payload.get("laws", []):
                     law, arts = item["law"], item["articles"]
@@ -191,52 +295,78 @@ class UpdaterWorker(QThread):
                     self.db.conn.execute("DELETE FROM law WHERE law_id=?",
                                          (law_id,))
                     self.db.conn.commit()
+                cur = d["to"]
                 total += len(payload.get("laws", []))
             except Exception:
                 return -1
+        if cur != manifest.get("data_ver", ""):
+            return -1                      # 목표까지 도달 실패
         return total
 
     def _download_snapshot(self, manifest):
         snap = manifest["snapshot"]
-        url = _https(snap.get("url") or f"{self.base_url}/{snap['file']}")
         size = int(snap.get("size", 0) or 0)
         if size and size > MAX_XZ_BYTES:
             raise IOError("스냅샷 크기가 비정상적으로 커 파기를 중단했습니다.")
         if not snap.get("sha256"):
             raise IOError("manifest에 sha256이 없어 무결성을 검증할 수 없습니다.")
         self.progress.emit(f"법령 데이터 받는 중… ({size/1048576:.0f}MB)", 0)
-        fd, tmp_xz = tempfile.mkstemp(suffix=".db.xz", dir=os.path.dirname(DB_PATH))
-        got = 0
-        h = hashlib.sha256()
-        try:
-            with os.fdopen(fd, "wb") as f:
-                r = self._get(url, stream=True, timeout=60)
-                for chunk in r.iter_content(1 << 16):
-                    f.write(chunk)
-                    h.update(chunk)
-                    got += len(chunk)
-                    if got > MAX_XZ_BYTES:
-                        raise IOError("다운로드 용량이 상한을 넘어 파기를 중단했습니다.")
-                    if size:
-                        self.progress.emit(
-                            f"법령 데이터 받는 중… "
-                            f"{got/1048576:.0f}/{size/1048576:.0f}MB",
-                            min(99, int(got * 100 / size)))
-            if h.hexdigest() != snap["sha256"]:
-                raise IOError("sha256 불일치(다운로드 손상)")
-            self.progress.emit("데이터 푸는 중…", 99)
-            return _inflate(tmp_xz)
-        finally:
-            if os.path.exists(tmp_xz):
-                os.remove(tmp_xz)
+        fd, tmp_xz = tempfile.mkstemp(suffix=".db.xz",
+                                      dir=os.path.dirname(DB_PATH))
+        os.close(fd)
+        from urllib.parse import urlparse
+        errs = []
+        for h in [self.base_url] + [x for x in self.hosts
+                                    if x != self.base_url]:
+            url = _https(h + "/" + snap["file"])
+            host = urlparse(url).hostname or ""
+            if not _url_pin_ok(url):
+                errs.append(f"{host}: 인증서 고정 검증 실패")
+                continue
+            got = 0
+            hsh = hashlib.sha256()
+            try:
+                with open(tmp_xz, "wb") as f:
+                    r = requests.get(url, stream=True, timeout=60,
+                                     headers={"User-Agent": UA},
+                                     verify=_verify_flag(url))
+                    r.raise_for_status()
+                    for chunk in r.iter_content(1 << 16):
+                        f.write(chunk)
+                        hsh.update(chunk)
+                        got += len(chunk)
+                        if got > MAX_XZ_BYTES:
+                            raise IOError("다운로드 용량이 상한을 넘어 "
+                                          "파기를 중단했습니다.")
+                        if size:
+                            self.progress.emit(
+                                f"법령 데이터 받는 중… "
+                                f"{got/1048576:.0f}/{size/1048576:.0f}MB",
+                                min(99, int(got * 100 / size)))
+                if hsh.hexdigest() != snap["sha256"]:
+                    raise IOError("sha256 불일치(다운로드 손상)")
+                if size and got != size:
+                    raise IOError("다운로드 길이 불일치")
+                self.progress.emit("데이터 푸는 중…", 99)
+                try:
+                    return _inflate(tmp_xz)
+                finally:
+                    if os.path.exists(tmp_xz):
+                        os.remove(tmp_xz)
+            except Exception as e:
+                errs.append(f"{host}: {e}")
+        if os.path.exists(tmp_xz):
+            os.remove(tmp_xz)
+        raise IOError(" / ".join(errs) or "스냅샷 다운로드 실패")
 
 
 # ---------- 프로그램 자체 업데이트(GitHub Releases) ----------
 GH_LATEST_URL = ("https://api.github.com/repos/nazgregory/"
                  "ImmediatelyLaw/releases/latest")
 # 설치 파일을 내려받아도 되는 공식 호스트만 허용(리디렉트도 검증).
-UPDATE_HOSTS = {"api.github.com", "github.com", "codeload.github.com",
-                "objects.githubusercontent.com",
+# 자체 미러/사용자 채널 호스트는 확인 시점에 extra로 추가된다.
+UPDATE_HOSTS = {"api.github.com", "github.com",
+                "codeload.github.com", "objects.githubusercontent.com",
                 "release-assets.githubusercontent.com"}
 MAX_ZIP_BYTES = 300 * 1024 * 1024   # 설치 zip 상한(실측 ~62MB)
 
@@ -246,26 +376,76 @@ def _ver_tuple(s: str):
     return tuple(int(x) if x.isdigit() else 0 for x in core.split("."))
 
 
-def _host_ok(url: str) -> bool:
+def _host_ok(url: str, extra=()) -> bool:
     from urllib.parse import urlparse
     u = urlparse(url)
-    return u.scheme == "https" and (u.hostname or "") in UPDATE_HOSTS
+    return (u.scheme == "https"
+            and ((u.hostname or "") in UPDATE_HOSTS
+                 or (u.hostname or "") in set(extra)))
 
 
 class AppUpdateWorker(QThread):
-    """GitHub Releases 최신 릴리스 확인."""
-    found = Signal(dict)     # {version, url, size, page}
+    """최신 릴리스 확인: 배포 채널의 app-latest.json 우선, GitHub API 폴백.
+
+    app-latest.json = {version, updated,
+                       files: {online|offline: {file, size, sha256}}}
+    채널 목록(app-latest.json)은 만료본이 최신을 가리지 않도록 전부 조회해
+    가장 높은 버전만 제안한다. 채널 파일 다운로드에는 sha256이 필수다."""
+    found = Signal(dict)     # {version, url, size, sha256, page}
     latest = Signal()
     failed = Signal(str)
 
-    def __init__(self, cur_ver: str, offline=False, parent=None):
+    def __init__(self, cur_ver: str, offline=False, hosts=None, parent=None):
         super().__init__(parent)
         self.cur_ver, self.offline = cur_ver, offline
+        self.hosts = [str(u).strip().rstrip("/") for u in (hosts or []) if u]
 
     def run(self):
         try:
+            best = None
+            errs = []
+            for h in self.hosts:
+                try:
+                    raw = _fetch_any([h], "app-latest.json", timeout=15)
+                    j = json.loads(raw.decode("utf-8"))
+                    want = ("offline" if self.offline else "online")
+                    pick = (j.get("files") or {}).get(want) \
+                        or (j.get("files") or {}).get("online")
+                    if not pick or not pick.get("file"):
+                        continue
+                    if not pick.get("sha256"):
+                        errs.append(f"{h}: sha256 없음(채널은 해시 필수)")
+                        continue
+                    ver = str(j.get("version") or "")
+                    if (best is None
+                            or _ver_tuple(ver) > _ver_tuple(best[0])):
+                        best = (ver, h, pick)
+                except Exception as e:
+                    errs.append(f"{h}: {e}")
+            if best and _ver_tuple(best[0]) > _ver_tuple(self.cur_ver):
+                ver, h, pick = best
+                url = h + "/" + pick["file"].lstrip("/")
+                if not _url_pin_ok(url):
+                    self.failed.emit("미러 인증서 고정 검증에 실패했습니다.")
+                    return
+                self.found.emit({
+                    "version": ver.lstrip("vV"), "url": url,
+                    "size": int(pick.get("size") or 0),
+                    "sha256": pick.get("sha256") or "",
+                    "page": h})
+                return
+            if best:
+                self.latest.emit()      # 채널들이 확인됐고 전부 현재 이하
+                return
+            self._github_fallback(errs)
+        except Exception as e:
+            self.failed.emit(str(e))
+
+    def _github_fallback(self, errs):
+        """채널manifest 실패 시 기존 GitHub Releases 경로(레거시)."""
+        try:
             r = requests.get(GH_LATEST_URL, timeout=15,
-                             headers={"User-Agent": "immediatelylaw-updater"})
+                             headers={"User-Agent": UA})
             r.raise_for_status()
             j = r.json()
             tag = (j.get("tag_name") or "").strip()
@@ -282,14 +462,15 @@ class AppUpdateWorker(QThread):
                 return
             self.found.emit({
                 "version": tag.lstrip("vV"), "url": url,
-                "size": int(a.get("size") or 0),
+                "size": int(a.get("size") or 0), "sha256": "",
                 "page": j.get("html_url", "")})
         except Exception as e:
-            self.failed.emit(str(e))
+            detail = ("; ".join(errs)[:200] + " / " if errs else "") + str(e)
+            self.failed.emit(detail)
 
 
 class AppDownloadWorker(QThread):
-    """동의한 뒤 설치 zip을 내려받아 안전 검사와 함께 풀어둔다."""
+    """동의한 뒤 설치 zip을 내려받아 무결성 검사(sha256)와 함께 풀어둔다."""
     progress = Signal(str, int)
     ready = Signal(str)      # 압출 푼 ImmediatelyLaw 폴더 경로
     failed = Signal(str)
@@ -300,17 +481,25 @@ class AppDownloadWorker(QThread):
 
     def run(self):
         import zipfile
+        from urllib.parse import urlparse
         zpath = None
         try:
+            url = self.info["url"]
+            _https(url)
+            start_host = urlparse(url).hostname or ""
+            extra = {start_host}
+            if not _url_pin_ok(url):
+                raise IOError("미러 인증서 고정 검증 실패")
             fd, zpath = tempfile.mkstemp(suffix=".zip",
                                          prefix="immediatelylaw-")
             got = total = 0
+            hsh = hashlib.sha256()
             with os.fdopen(fd, "wb") as f:
-                with requests.get(self.info["url"], stream=True, timeout=60,
-                                  headers={"User-Agent":
-                                           "immediatelylaw-updater"}) as r:
+                with requests.get(url, stream=True, timeout=60,
+                                  headers={"User-Agent": UA},
+                                  verify=_verify_flag(url)) as r:
                     r.raise_for_status()
-                    if not _host_ok(r.url):
+                    if not _host_ok(r.url, extra):
                         raise IOError("리디렉트 대상이 신뢰할 수 없는 주소입니다.")
                     total = int(r.headers.get("content-length")
                                 or self.info.get("size") or 0)
@@ -318,6 +507,7 @@ class AppDownloadWorker(QThread):
                         if self.cancel:
                             raise IOError("사용자가 취소했습니다.")
                         f.write(chunk)
+                        hsh.update(chunk)
                         got += len(chunk)
                         if got > MAX_ZIP_BYTES:
                             raise IOError("설치 파일이 허용 크기를 넘습니다.")
@@ -330,6 +520,9 @@ class AppDownloadWorker(QThread):
                 raise IOError(
                     f"다운로드 중 연결이 끊겼습니다 "
                     f"({got/1048576:.0f}/{total/1048576:.0f}MB).")
+            want_sha = self.info.get("sha256") or ""
+            if want_sha and hsh.hexdigest() != want_sha:
+                raise IOError("설치 파일 sha256이 배포 정보와 일치하지 않습니다.")
             out = tempfile.mkdtemp(prefix="immediatelylaw-update-")
             with zipfile.ZipFile(zpath) as z:
                 for n in z.namelist():

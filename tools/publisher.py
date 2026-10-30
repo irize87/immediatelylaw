@@ -8,6 +8,7 @@
   python -m tools.publisher package             # 배포용 스냅샷(.db.xz)+manifest
 """
 import argparse
+import glob
 import hashlib
 import json
 import lzma
@@ -25,6 +26,7 @@ from immediatelylaw.db import Database, norm_name
 from immediatelylaw.lawapi import LawApi, LawApiError
 
 OUT_DIR = os.path.join(dbmod.DATA_DIR, "dist")
+DELTA_KEEP = 30   # 매니페스트에 올리고 보관할 최근 델타 개수
 
 
 def _api():
@@ -152,35 +154,62 @@ def cmd_update(_args):
     for law_id in removed:
         d.conn.execute("DELETE FROM law WHERE law_id=?", (law_id,))
         d.conn.commit()
+    prev_ver = d.get_meta("data_ver", "")
+    if not (updated_delta or removed):
+        # 개정 없음: 버전을 올리지 않는다(앱이 이미 최신이면 트래픽 0).
+        if not prev_ver:
+            prev_ver = time.strftime("%Y%m%d%H%M")
+            d.set_meta("data_ver", prev_ver)
+        print(f"개정 없음 — 데이터 버전 유지: {prev_ver}")
+        print("완료.", d.stats())
+        return
     ver = time.strftime("%Y%m%d%H%M")
     d.set_meta("data_ver", ver)
     os.makedirs(OUT_DIR, exist_ok=True)
-    if updated_delta or removed:
-        raw = json.dumps({"ver": ver, "laws": updated_delta,
-                          "removed": sorted(removed)}, ensure_ascii=False)
-        path = _write_xz(os.path.join(OUT_DIR, f"delta-{ver}.json"), raw)
-        print("델타:", path)
+    raw = json.dumps({"ver": ver, "from": prev_ver,
+                      "laws": updated_delta,
+                      "removed": sorted(removed)}, ensure_ascii=False)
+    path = _write_xz(os.path.join(OUT_DIR, f"delta-{ver}.json"), raw)
+    print(f"델타: {path} ({prev_ver} → {ver})")
     print("완료.", d.stats())
 
 
 def cmd_package(_args):
     d = Database()
     os.makedirs(OUT_DIR, exist_ok=True)
-    tmp = os.path.join(OUT_DIR, "snapshot-src.db")
-    d.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-    src = sqlite3.connect(dbmod.DB_PATH)
-    dst = sqlite3.connect(tmp)
-    src.backup(dst)
-    dst.execute("VACUUM")
-    dst.commit()
-    dst.close()
-    src.close()
     ver = d.get_meta("data_ver") or time.strftime("%Y%m%d%H%M")
     final = os.path.join(OUT_DIR, f"immediatelylaw-{ver}.db.xz")
-    with open(tmp, "rb") as fin, lzma.open(final, "wb", preset=9) as fout:
-        shutil.copyfileobj(fin, fout)
-    os.remove(tmp)
+    if os.path.isfile(final):
+        # 같은 버전 스냅샷이 이미 있으면 재생성하지 않음(무개정 일·재실행 낭비 차단)
+        print("스냅샷 존재 — 유지:", final)
+    else:
+        tmp = os.path.join(OUT_DIR, "snapshot-src.db")
+        d.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        src = sqlite3.connect(dbmod.DB_PATH)
+        dst = sqlite3.connect(tmp)
+        src.backup(dst)
+        dst.execute("VACUUM")
+        dst.commit()
+        dst.close()
+        src.close()
+        with open(tmp, "rb") as fin, lzma.open(final, "wb", preset=9) as fout:
+            shutil.copyfileobj(fin, fout)
+        os.remove(tmp)
     raw = open(final, "rb").read()
+    deltas = []
+    ds = sorted(glob.glob(os.path.join(OUT_DIR, "delta-*.json.xz")))
+    for p in ds[:-DELTA_KEEP]:          # 오래된 델타 정리
+        os.remove(p)
+    for p in ds[-DELTA_KEEP:]:
+        try:
+            j = json.loads(lzma.open(p, "rb").read().decode("utf-8"))
+        except Exception:
+            continue
+        blob = open(p, "rb").read()
+        deltas.append({"file": os.path.basename(p),
+                       "from": j.get("from", ""), "to": j.get("ver", ""),
+                       "size": len(blob),
+                       "sha256": hashlib.sha256(blob).hexdigest()})
     manifest = {
         "app": "immediatelylaw",
         "data_ver": ver,
@@ -191,11 +220,12 @@ def cmd_package(_args):
             "sha256": hashlib.sha256(raw).hexdigest(),
         },
         "source": "출처: 국가법령정보센터(법제처) OPEN API",
-        "deltas": [],
+        "deltas": deltas,
     }
     with open(os.path.join(OUT_DIR, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=1)
-    print("패키지 완료:", final, f"{len(raw)/1024/1024:.1f} MiB")
+    print("패키지 완료:", final, f"{len(raw)/1024/1024:.1f} MiB",
+          f"(델타 {len(deltas)}개)")
 
 
 def _write_xz(path, text):

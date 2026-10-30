@@ -128,10 +128,12 @@ class SettingsDialog(QDialog):
         row = QHBoxLayout()
         self.ed_url = QLineEdit(self.cfg["data_base_url"])
         self.ed_url.setPlaceholderText("데이터 배포 주소 (…/immediatelylaw-data/dist)")
+        self.ed_url.setToolTip("이 주소가 죽으면 내장 자가 미러·추가 채널로 "
+                               "자동 전환됩니다.")
         row.addWidget(QLabel("배포 주소"))
         row.addWidget(self.ed_url, 1)
         lay.addLayout(row)
-        self.btn_upd = QPushButton("지금 업데이트 (GitHub)")
+        self.btn_upd = QPushButton("지금 업데이트")
         self.btn_upd.clicked.connect(self._req_update)
         lay.addWidget(self.btn_upd)
         lay.addStretch(1)
