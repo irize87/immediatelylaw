@@ -1,0 +1,2 @@
+# 셸 각본은 항상 LF 유지 (Windows 체크아웃에서 CRLF 오염 → 서버 exec 실패 방지)
+*.sh text eol=lf
