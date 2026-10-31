@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS law(
 CREATE INDEX IF NOT EXISTS idx_law_name ON law(name);
 CREATE INDEX IF NOT EXISTS idx_law_lawid ON law(law_id);
 CREATE INDEX IF NOT EXISTS idx_law_short ON law(short);
+/* 검색어 정확조회(search_laws_by_name)의 정규화 표현식과
+   문자 그대로 동일해야 식(expression) 인덱스가 사용된다. */
+CREATE INDEX IF NOT EXISTS idx_law_effective_norm_name
+  ON law(replace(replace(name,' ',''),'\u3000',''));
+CREATE INDEX IF NOT EXISTS idx_law_effective_norm_short
+  ON law(replace(short,' ',''));
 CREATE TABLE IF NOT EXISTS article(
   mst INTEGER NOT NULL,
   art_no TEXT NOT NULL,
@@ -118,6 +124,9 @@ class Database:
             self.conn.row_factory = sqlite3.Row
             self.conn.execute("PRAGMA journal_mode=WAL")
             self.conn.execute("PRAGMA synchronous=NORMAL")
+            # 내려받은 파일이 구(舊)스키마여도 앱 기준 구조·인덱스를 보장한다.
+            self.conn.executescript(_SCHEMA)
+            self.conn.commit()
 
     def set_meta(self, key, value):
         with self._lock:
