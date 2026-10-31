@@ -179,6 +179,7 @@ class ImmediatelyLaw(QObject):
         cites = payload.get("cites") or []
         if not cites:
             return
+        rid = payload.get("rid") or 0
         c0 = cites[0]
         # 같은 법령 계열(본법 기준) 인용은 이어서 함께 표시한다.
         # 예: 「도서관법」 제33조 및 같은 법 시행령 제19조
@@ -186,13 +187,15 @@ class ImmediatelyLaw(QObject):
         group = [c for c in cites
                  if refparse.base_name(c["law"]) == base0][:3]
         found = []
+        perf.mark(rid, "resolve_start", group=len(group))
         for c in group:
             r = resolver.resolve(self.db, c["law"], c["art"], None,
                                  hints=c.get("law_all"))
             if r.get("found"):
                 found.append(r)
+        perf.mark(rid, "resolve_end", found=len(found))
         if found:
-            self.overlay.show_results(found)
+            self.overlay.show_results(found, rid=rid)
             self._remember_law(found[0]["law_name"])
             rest = len(cites) - len(group)
             if rest > 0:

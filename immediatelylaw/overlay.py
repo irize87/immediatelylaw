@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect,
                                QHBoxLayout, QLabel, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
 
-from . import theme
+from . import perf, theme
 from .refparse import base_name
 
 CIRCLED = "\u2460\u2461\u2462\u2463\u2464\u2465\u2466\u2467\u2468\u2469" \
@@ -367,12 +367,14 @@ class OverlayCard(QWidget):
         return scr.availableGeometry().height() if scr else 1080
 
     # ---------- 표시 ----------
-    def show_result(self, res: dict, note: str = ""):
-        self.show_results([res], note)
+    def show_result(self, res: dict, note: str = "", rid: int = 0):
+        self.show_results([res], note, rid=rid)
 
-    def show_results(self, res_list, note: str = ""):
+    def show_results(self, res_list, note: str = "", rid: int = 0):
         """조문 1건 또는 여러 건(법+시행령 등)을 이어서 표시."""
         res = res_list[0]
+        self._rid = rid
+        self._paint_pending = True
         self._current = res
         self._current_list = list(res_list)
         self._esc_at = 0.0
@@ -384,12 +386,21 @@ class OverlayCard(QWidget):
             self.set_badge("check", "시행예정")
         else:
             self.set_badge("neutral", "조회")
+        perf.mark(rid, "html_start", items=len(res_list))
         self.tv.setHtml(articles_html_multi(
             res_list, self._pt(), theme.palette(self.cfg)["dark"]))
+        perf.mark(rid, "html_end")
         self.lb_state.setText(note)
         self._place_and_show()
         if res.get("source") != "local-reg":
             self.verify_requested.emit(res)
+
+    def paintEvent(self, e):
+        super().paintEvent(e)
+        # 앱 관점의 첫 표시 근사치(물리적 화면 출력 시각이 아님).
+        if getattr(self, "_paint_pending", False):
+            self._paint_pending = False
+            perf.mark(getattr(self, "_rid", 0), "first_paint")
 
     def _combined_title(self, res_list) -> str:
         def head1(res):
@@ -442,6 +453,7 @@ class OverlayCard(QWidget):
         self.lb_state.setText(text)
 
     def _place_and_show(self):
+        perf.mark(getattr(self, "_rid", 0), "show_requested")
         self.adjustSize()
         h = min(self.sizeHint().height() + 20,
                 int(self._screen_h() * 0.72))
