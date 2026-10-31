@@ -465,10 +465,9 @@ class ImmediatelyLaw(QObject):
                 "GitHub Releases에서 설치 파일을 받아 설치하세요.")
             return
         import subprocess
+        import tempfile
         exe = sys.executable
         dst = os.path.dirname(exe)
-        bat = os.path.join(os.environ.get("TEMP", os.path.expanduser("~")),
-                           "immediatelylaw-update.bat")
         # ASCII만 사용: 코드 페이지와 무관하게 동작하도록.
         script = (
             "@echo off\r\n"
@@ -490,7 +489,11 @@ class ImmediatelyLaw(QObject):
             ":end\r\n"
             "del \"%~f0\"\r\n")
         try:
-            with open(bat, "w", encoding="ascii") as f:
+            # 고정 이름 대신 배타 생성(mkstemp): 같은 사용자 악성 프로세스가
+            # 미리 파일을 만들어 실행 내용을 바꾸는 선점경쟁 원천 차단.
+            fd, bat = tempfile.mkstemp(prefix="immediatelylaw-update-",
+                                       suffix=".bat")
+            with os.fdopen(fd, "w", encoding="ascii") as f:
                 f.write(script)
             detached = 0x00000008 | 0x00000200  # DETACHED | NEW_PROCESS_GROUP
             subprocess.Popen(["cmd.exe", "/c", bat, str(os.getpid()),

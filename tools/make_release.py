@@ -75,6 +75,17 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     ver = __version__
 
+    # 발행 직전 최종 관문: 랜딩 폴백이 정본과 어긋난 상태면 발행을 중단한다
+    # (버전 정본은 immediatelylaw/__init__.py, 갱신은 tools/sync_version).
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import sync_version
+    found = sync_version.find_landing_versions()[0]
+    stale = [v for v in found if v != ver]
+    if stale or not found:
+        print(f"!! web/index.html 폴백 {found or '없음'} != v{ver} — "
+              f"python -m tools.sync_version 후 다시 실행.")
+        sys.exit(2)
+
     online = os.path.join(OUT, f"ImmediatelyLaw-online-{ver}.zip")
     _zip_dir(DIST_APP, online)
 

@@ -12,6 +12,8 @@ os.makedirs(os.path.join(ISO, "data"), exist_ok=True)
 shutil.copyfile(os.path.join(REAL, "config.json"),
                 os.path.join(ISO, "config.json"))
 cfg = json.load(open(os.path.join(ISO, "config.json"), encoding="utf-8"))
+cfg.pop("oc_key_enc", None)           # API 키(DPAPI 암호문)는 측정 환경에 복사하지 않음
+cfg.pop("oc_key", None)               # 과거 평문 잔재가 있어도 같이 제거
 cfg["verify_enabled"] = False          # 측정 중 외부 API 호출 차단
 cfg["update_check"] = False            # 측정 중 업데이트 알림 소음 제거
 json.dump(cfg, open(os.path.join(ISO, "config.json"), "w",

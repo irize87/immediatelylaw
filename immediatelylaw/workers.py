@@ -30,6 +30,7 @@ def bundled_snapshot():
 
 MAX_XZ_BYTES = 400 * 1024 * 1024    # 압축 스냅샷 상한(실측 ~30MB)
 MAX_DB_BYTES = 900 * 1024 * 1024    # 해제 후 DB 상한(호·목 전문 복원 후 실측 ~412MB)
+MAX_DELTA_JSON = 64 * 1024 * 1024   # 델타 1건 해제 후 상한(실측 ≪1MB, 압축풀기 폭탄 방어)
 
 
 def _https(url: str) -> str:
@@ -101,6 +102,22 @@ def _url_pin_ok(url: str) -> bool:
 def _verify_flag(url: str) -> bool:
     from urllib.parse import urlparse
     return (urlparse(url).hostname or "") not in CERT_PINS
+
+
+def _lzma_decompress_limited(content: bytes, limit: int) -> bytes:
+    """xz 해제 결과를 limit 바이트로 묶어 해제(초과 시 IOError). 만료
+    방지용 소량 데이터(델타)용이며, 대량 스냅샷은 _inflate이 별도 처리."""
+    import io
+    out = bytearray()
+    with lzma.open(io.BytesIO(content), "rb") as fin:
+        while True:
+            b = fin.read(1 << 20)
+            if not b:
+                break
+            out += b
+            if len(out) > limit:
+                raise IOError("데이터 해제 용량이 상한을 넘어 파기했습니다.")
+    return bytes(out)
 
 
 def data_host_list(cfg) -> list:
@@ -293,7 +310,9 @@ class UpdaterWorker(QThread):
                                      d["file"], timeout=60)
                 if hashlib.sha256(content).hexdigest() != d["sha256"]:
                     return -1
-                payload = json.loads(lzma.decompress(content).decode("utf-8"))
+                payload = json.loads(
+                    _lzma_decompress_limited(
+                        content, MAX_DELTA_JSON).decode("utf-8"))
                 from .db import norm_name
                 for item in payload.get("laws", []):
                     law, arts = item["law"], item["articles"]
