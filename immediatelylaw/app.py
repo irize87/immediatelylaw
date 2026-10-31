@@ -94,7 +94,6 @@ class ImmediatelyLaw(QObject):
 
         self.watcher = ClipboardWatcher(app.clipboard(), self.cfg)
         self.watcher.citation.connect(self._on_citation)
-        QTimer.singleShot(0, lambda: perf.mark(0, "LOOP_ALIVE"))
 
         self.search = None
         self.settings = None

@@ -1,10 +1,11 @@
 # 측정 러너: 격리 APPDATA로 소스 앱 실행 → 스크립트 복사 N회 → 앱 종료
+# 사용: python tools/perf_measure.py before|after
 import os
 import subprocess
 import sys
 import time
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ISO_APPDATA = os.path.join(os.environ["TEMP"], "il_measure", "AppData", "Roaming")
 LOG = os.path.join(os.environ["TEMP"], "il_measure", "perf_%s.log" % sys.argv[1])
 if os.path.exists(LOG):
