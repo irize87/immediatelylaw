@@ -118,3 +118,66 @@ def test_citation_payload(qtbot, cfg):
     assert payload["cites"][0]["law"] == "형법"
     assert payload["cites"][0]["art"] == "23"
     assert isinstance(payload.get("rid"), int)
+
+
+# ---------- 2단계: 즉시 처리·재시도 사다리·세대 보호 ----------
+
+def test_response_is_immediate(qtbot, cfg):
+    """고정 대기가 있으면 안 된다: 복사→ 알림이 옛 120ms 디바운스보다 훨씬 빨라야 한다."""
+    import time as _t
+    clip = FakeClipboard(["민법 제750조"])
+    w = ClipboardWatcher(clip, cfg)
+    t0 = _t.perf_counter()
+    with qtbot.waitSignal(w.citation, timeout=1000):
+        clip.dataChanged.emit()
+    dt = (_t.perf_counter() - t0) * 1000
+    assert dt < 80, f"응답 지연 {dt:.0f}ms — 즉시 처리로 회귀했다"
+
+
+def test_transient_error_recovers_via_ladder(qtbot, cfg):
+    """일시적 읽기 실패는 재시도 사다리 안에서 복구한다."""
+    clip = FakeClipboard([RuntimeError("clip busy"), "민법 제750조"])
+    w = ClipboardWatcher(clip, cfg)
+    with qtbot.waitSignal(w.citation, timeout=1000):
+        clip.dataChanged.emit()
+
+
+def test_empty_then_text_recovers(qtbot, cfg):
+    """지연 제공(delayed render): 첫 읽기가 비었다가 조금 뒤 들어온 복사도 잡는다."""
+    clip = FakeClipboard(["", "형법 제23조"])
+    w = ClipboardWatcher(clip, cfg)
+    with qtbot.waitSignal(w.citation, timeout=1000) as sig:
+        clip.dataChanged.emit()
+    assert sig.args[0]["cites"][0]["law"] == "형법"
+
+
+def test_retry_ladder_gives_up(qtbot, cfg):
+    """빈 클립드는 사다리(합계 125ms)만큼만 읽고 포기 — 무한 재시도 금지."""
+    clip = FakeClipboard(["", "", "", "", "형법 제23조"])
+    w = ClipboardWatcher(clip, cfg)
+    hits = []
+    w.citation.connect(hits.append)
+    clip.dataChanged.emit()
+    qtbot.wait(500)
+    assert hits == []
+    assert len(clip.script) == 1          # 최초 1회+재시도 3회만 읽고 멈췄다
+    with qtbot.waitSignal(w.citation, timeout=1000):
+        clip.push("민법 제750조")           # 새 세대는 정상 동작
+
+
+def test_stale_generation_retry_not_read(qtbot, cfg):
+    """구세대 재시도는 읽기 자체를 하지 않는다 — 최신 복사를 덮을 수 없다."""
+    clip = FakeClipboard(["민법 제750조"])
+    reads = []
+    orig = clip.text
+
+    def spy():
+        reads.append(1)
+        return orig()
+
+    clip.text = spy
+    w = ClipboardWatcher(clip, cfg)
+    w._gen = 10
+    w._try_read(9, first=False)            # A복사의 지연 재시도 도착
+    qtbot.wait(60)
+    assert reads == []
