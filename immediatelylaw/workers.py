@@ -11,6 +11,7 @@ import requests
 from PySide6.QtCore import QThread, Signal
 
 from . import resolver
+from .config import clean_base_url
 from .db import DB_PATH
 
 
@@ -39,15 +40,11 @@ def _https(url: str) -> str:
 
 
 # ---------- 배포 채널 ----------
-# 배포(데이터·프로그램·앱) 채널의 1순위는 자가 배포 서버(자체서명)다.
-# GitHub는 소스 코드 공개 전용으로만 쓰고 데이터 채널에서는 제외한다(2026-10-,
-# 대용량 데이터의 git 푸시·raw 배포가 AUP상 과도한 파일호스팅으로 분류될 수 있어
-# publisher도 더 이상 GitHub dist 브랜치에 push하지 않는다).
+# 배포(데이터·프로그램·앱) 채널의 1순위는 자가 배포 서버(자체서명)다. GitHub는
+# 소스 코드 공개 전용으로만 쓰고 데이터 채널에서는 제외한다(옛 GitHub 데이터
+# 배포는 종료되어 현재 404 — 옛 값 걸러내기는 config.clean_base_url이 담당).
 # 같은 레이아웃(manifest.json / delta-*.json.xz / immediatelylaw-*.db.xz /
 # app-latest.json)을 배포하는 채널을 순서대로 시도한다.
-# 구버전 설정에 남아 있을 수 있는 옛 기본값만 걸러 쓰기 위한 상수다.
-LEGACY_GH_DATA_BASE = ("https://raw.githubusercontent.com/nazgregory/"
-                       "immediatelylaw-data/dist")
 MIRROR_BASE = "https://152.67.205.216"   # 자가 배포 서버(자체서명, 인증서 고정)
 UA = "immediatelylaw-updater"
 
@@ -107,18 +104,18 @@ def _verify_flag(url: str) -> bool:
 
 
 def data_host_list(cfg) -> list:
-    """cfg 기준의 채널 순서 목록(비어 있음·중복·옛 GitHub 기본값 제거).
+    """cfg 기준의 채널 순서 목록(비어 있음·중복·유통불가 주소 제거).
 
     순서: 사용자가 지정한 배포 주소(설정, 있으면 우선) → 내장 배포 서버 →
-    추가 채널(mirror_url). 전부 실패하면 업데이트만 멈추고 앱·데이터는 지금
-    상태로 계속 동작한다."""
-    raw = [cfg.get("data_base_url") or "", MIRROR_BASE,
-           cfg.get("mirror_url") or ""]
-    legacy = LEGACY_GH_DATA_BASE.rstrip("/")
+    추가 채널(mirror_url). 배포 주소는 config.clean_base_url로 검증하므로
+    사용자가 스페이스 같은 값을 넣으면 그 칸은 없는 셈 쳐져 배포 서버를
+    바라본다. 전부 실패하면 업데이트만 멈추고 앱·데이터는 지금 상태로 계속
+    동작한다."""
+    raw = [clean_base_url(cfg.get("data_base_url")), MIRROR_BASE,
+           clean_base_url(cfg.get("mirror_url"))]
     out = []
     for u in raw:
-        u = (u or "").strip().rstrip("/")
-        if not u or u in out or u == legacy:
+        if not u or u in out:
             continue
         out.append(u)
     return out

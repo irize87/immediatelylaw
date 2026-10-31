@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
                                QWidget)
 
 from . import __version__, localreg, theme
+from .config import clean_base_url
 from .db import norm_name
 
 OPEN_LAW_URL = "https://open.law.go.kr/LSO/main.do"
@@ -127,9 +128,10 @@ class SettingsDialog(QDialog):
         lay.addWidget(lb)
         row = QHBoxLayout()
         self.ed_url = QLineEdit(self.cfg["data_base_url"])
-        self.ed_url.setPlaceholderText("비우면 기본 배포 서버를 사용합니다")
-        self.ed_url.setToolTip("직접 운영한 배포 서버 주소로 바꾸면 그곳을 먼저,\n"
-                               "실패하면 기본 배포 서버로 자동 전환됩니다.")
+        self.ed_url.setPlaceholderText("비우면 배포 서버(https://152.67.205.216)를 사용합니다")
+        self.ed_url.setToolTip("직접 운영한 배포 서버 주소를 넣으면 그곳을 먼저 시도하고,\n"
+                               "연결 실패나 잘못된 형식(공백·http 등)으로는 자동 전환되어\n"
+                               "항상 배포 서버로 데이터를 받습니다.")
         row.addWidget(QLabel("배포 주소"))
         row.addWidget(self.ed_url, 1)
         lay.addLayout(row)
@@ -525,14 +527,17 @@ class SettingsDialog(QDialog):
         self.cfg["verify_enabled"] = self.chk_verify.isChecked()
         self.cfg["hotkey_enabled"] = self.chk_hotkey.isChecked()
         self.cfg["clipboard_paused"] = self.chk_pause.isChecked()
-        url = self.ed_url.text().strip().rstrip("/")
-        if url and not url.lower().startswith("https://"):
+        url_in = self.ed_url.text()
+        url = clean_base_url(url_in)
+        if url_in.strip() and not url:
+            # 무언가 입력했는데 유통 불가(비https·공백·옛 주소 등)면: 저장하지
+            # 않고 빈칸으로 되돌린다 → 결과적으로 배포 서버를 바라본다.
             QMessageBox.warning(
                 self, "즉시로 설정",
-                "데이터 배포 주소는 https만 사용할 수 있습니다.\n"
-                "입력한 주소는 저장되지 않았습니다.")
-        else:
-            self.cfg["data_base_url"] = url
+                "올바른 https 배포 주소가 아니라 저장하지 않았습니다.\n"
+                "빈칸으로 두면 배포 서버를 사용합니다.")
+            self.ed_url.setText("")
+        self.cfg["data_base_url"] = url
         # 의도된 시작 실행 상태를 설정에 기록(부팅 시 자동 등록 판단용)
         self.cfg["autostart"] = self.chk_auto.isChecked()
         self.cfg["update_check"] = self.chk_updchk.isChecked()

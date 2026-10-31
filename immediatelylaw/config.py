@@ -55,6 +55,34 @@ DEFAULTS = {
     "mirror_url": "",              # 추가 배포 채널(비우면 내장 배포 서버까지만 사용)
 }
 
+# 구버전 설정(config.json)에 남아 있을 수 있는 옛 데이터 채널. GitHub 데이터
+# 배포는 종료되어 지금 404이므로, 설정에 남아 있어서는 절대 안 되는 주소다
+# (일치하면 빈값 = 내장 배포 서버로 되돌린다).
+LEGACY_BASE_URLS = frozenset({
+    "https://raw.githubusercontent.com/nazgregory/immediatelylaw-data/dist",
+})
+
+
+def clean_base_url(value) -> str:
+    """배포 채널 주소를 검증·정규화. 신뢰할 수 없으면 ''(= 내장 배포 서버 폴백).
+
+    규칙: 모든 공백(앞뒤·내부 탭/개행)을 제거한 뒤 https:// 접두사와 호스트가
+    있어야 한다. 옛 GitHub 데이터 주소는 폐기. 사용자가 실수로 스페이스나
+    깨진 값을 넣어도 예외 없이 ''가 되어 배포 서버를 바라보게 된다.
+    """
+    u = "".join((value or "").split())          # 내부 공백·탭·개행까지 제거
+    if not u:
+        return ""
+    if not u.lower().startswith("https://"):
+        return ""
+    from urllib.parse import urlparse
+    if not urlparse(u).netloc:
+        return ""
+    u = u.rstrip("/")
+    if u in LEGACY_BASE_URLS:
+        return ""
+    return u
+
 # ---------------- DPAPI (Windows 전용) ----------------
 if sys.platform == "win32":
     _DATA_BLOB_FLAG_CRYPTPROTECT_UI_FORBIDDEN = 0x01
@@ -110,6 +138,10 @@ class Config:
             for k in DEFAULTS:
                 if k in raw:
                     self._d[k] = raw[k]
+            # 배포 채널은 읽는 자리에서 항상 검증: 옛(404)·잘못된 값이 config.json에
+            # 남아 있어도 ''(내장 배포 서버)로 폴백된다(저장 시에도 동일 검증).
+            self._d["data_base_url"] = clean_base_url(self._d.get("data_base_url"))
+            self._d["mirror_url"] = clean_base_url(self._d.get("mirror_url"))
             self.oc_key_enc = raw.get("oc_key_enc", "") or ""
             # 과거 평문 마이그레이션
             if raw.get("oc_key") and not self.oc_key_enc:
