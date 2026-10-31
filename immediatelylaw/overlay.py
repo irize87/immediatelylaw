@@ -61,8 +61,8 @@ class FooterBar(QWidget):
 
         self.lb_state = QLabel("")
         self.lb_state.setFont(QFont("Malgun Gothic", 8))
-        # 원문 링크: 조문이 표시되면 set_article_link가 law.go.kr 해당 조문으로
-        # 바꾸고 라벨을 '조문 원문 ↗'로 바꾼다. 초기에는 센터 홈 안내.
+        # 법령정보센터 링크: 조문이 표시되면 set_article_link가 본법 이름의
+        # lsSc.do 검색어로 주소만 바꾼다(라벨은 항상 '법령정보센터 ↗').
         self.btn_site = self._link(
             "https://www.law.go.kr/", "법령정보센터 ↗",
             "국가법령정보센터(www.law.go.kr) 열기")
@@ -133,11 +133,23 @@ class FooterBar(QWidget):
                 + p['fg2'] + ";text-decoration:none'>"
                 + str(lb.property('label')) + "</a>")
 
-    def set_article_link(self, res):
-        """표시 중인 조문이 있으면 원문 링크를 law.go.kr 해당 조문으로 돌린다.
+    @staticmethod
+    def center_url(law_name: str) -> str:
+        """국가법령정보센터 이동 주소.
 
-        res None이면 법령정보센터 홈 안내로 되돌린다.
-        자치법규는 law.go.kr 조문 링크가 없으므로 원문 링크를 숨긴다."""
+        시행령·시행규칙이 조회되어도 본법 이름으로 검색해야 이동 후
+        옆 사이드메뉴에 '법 + 시행령 + 시행규칙' 패널이 모두 열린다.
+        (예: 시행령으로 query 를 넣으면 시행령만 나와 다른 것이 안 보임)"""
+        from urllib.parse import quote
+        base = base_name(law_name or "") or (law_name or "")
+        return "https://www.law.go.kr/lsSc.do?query=" + quote(base)
+
+    def set_article_link(self, res):
+        """표시 중인 법령의 법령정보센터 링크를 갱신한다.
+
+        주소는 본법 이름의 lsSc.do 검색어로, 열면 법+시행령+시행규칙이
+        모두 선택 가능한 패널이 열린다. res None이면 센터 홈으로 되돌리고,
+        자치법규는 대응 페이지가 없어 링크를 숨긴다."""
         if res is None:
             self.btn_site.setProperty("url", "https://www.law.go.kr/")
             self.btn_site.setProperty("label", "법령정보센터 ↗")
@@ -149,14 +161,12 @@ class FooterBar(QWidget):
         if res.get("source") == "local-reg":
             self.btn_site.setVisible(False)
             return
-        from urllib.parse import quote
-        url = ("https://www.law.go.kr/법령/"
-               + quote(str(res.get("law_name", "")))
-               + "/" + quote(f"제{res.get('art_no', '')}조"))
+        url = self.center_url(res.get("law_name", ""))
         self.btn_site.setProperty("url", url)
-        self.btn_site.setProperty("label", "조문 원문 ↗")
+        self.btn_site.setProperty("label", "법령정보센터 ↗")
         self.btn_site.setToolTip(
-            "국가법령정보센터에서 이 조문의 원문 열기")
+            f"{base_name(res.get('law_name', '')) or res.get('law_name', '')} "
+            "— 국가법령정보센터에서 법·시행령·시행규칙 함께 열기")
         self.btn_site.setVisible(True)
         self._paint_links()
 
@@ -503,8 +513,7 @@ class OverlayCard(QWidget):
             self.set_badge("neutral", "조회",
                            "실시간 확인 전 — 저장된 데이터 기준으로 "
                            "표시합니다.")
-        self.footer.set_article_link(
-            res if len(res_list) == 1 else None)
+        self.footer.set_article_link(res)
         perf.mark(rid, "html_start", items=len(res_list))
         self.tv.setHtml(articles_html_multi(
             res_list, self._pt(), theme.palette(self.cfg)["dark"]))
