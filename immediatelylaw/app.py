@@ -210,7 +210,8 @@ class ImmediatelyLaw(QObject):
             from .workers import ResolveWorker
             self.overlay.lb_title.setText(
                 f"{c['law']} 제{c['art']}조")
-            self.overlay.set_badge("neutral", "가져오는 중")
+            self.overlay.set_badge("neutral", "가져오는 중",
+                                   "법제처에서 조문을 가져오는 중입니다.")
             self.overlay.set_state("법제처에서 가져오는 중…")
             w = ResolveWorker(self.db, self.api, c["law"], c["art"],
                               hints=c.get("law_all"))
@@ -219,7 +220,9 @@ class ImmediatelyLaw(QObject):
             w.start()
         else:
             self.overlay.lb_title.setText(f"{c['law']} 제{c['art']}조")
-            self.overlay.set_badge("check", "확인")
+            self.overlay.set_badge("check", "확인",
+                                   "저장된 데이터에서 찾지 못했습니다.\n"
+                                   "데이터 갱신이나 API 키를 확인하세요.")
             self.overlay.set_state("로컬 데이터에 없는 법령입니다. "
                                    "데이터 갱신이나 API 키를 확인하세요.")
             if not self.overlay.isVisible():
@@ -230,7 +233,8 @@ class ImmediatelyLaw(QObject):
             self.overlay.show_result(res)
             self._remember_law(res["law_name"])
         else:
-            self.overlay.set_badge("check", "확인")
+            self.overlay.set_badge("check", "확인",
+                                   "법제처에서도 찾을 수 없습니다.")
             self.overlay.set_state("법제처에서도 찾을 수 없습니다.")
 
     def _remember_law(self, law_name: str):
@@ -243,9 +247,18 @@ class ImmediatelyLaw(QObject):
     # ---------- 검증 ----------
     def _start_verify(self, res: dict):
         if not self.cfg["verify_enabled"]:
-            ver = self.db.get_meta("data_ver")
-            self.overlay.set_badge("current" if ver else "check",
-                                   "현행" if ver else "확인")
+            # 실시간 확인 꺼짐 — 배지도 '데이터 기준'임을 분명히 표시한다.
+            ver = self.db.get_meta("data_ver") or ""
+            if ver:
+                self.overlay.set_badge(
+                    "current", "현행",
+                    f"데이터 기준 확인 — 마지막 데이터 갱신({ver}) 시점의 "
+                    "현행 여부입니다.\n실시간 대조는 설정에서 켤 수 있습니다.")
+            else:
+                self.overlay.set_badge(
+                    "check", "확인",
+                    "데이터 갱신 시점을 알 수 없습니다. 데이터 갱신을 "
+                    "실행해 보세요.")
             return
         w = VerifyWorker(self.db, self.api, res)
         w.done.connect(self._on_verified)
@@ -255,8 +268,15 @@ class ImmediatelyLaw(QObject):
     def _on_verified(self, kind: str, msg: str):
         text = {"current": "현행", "check": "확인",
                 "offline": "오프라인"}.get(kind)
+        if kind == "check" and msg:
+            tip = f"실시간 확인 결과\n{msg}"
+        elif kind not in ("current", "check"):
+            tip = ("오프라인 — 실시간 확인을 수행하지 못했습니다.\n"
+                   "표시 내용은 데이터 갱신 시점 기준입니다.")
+        else:
+            tip = ""   # current: 카드 기본 문구(법제처 실시간 확인) 사용
         self.overlay.set_badge(kind if kind in ("current", "check")
-                               else "neutral", text)
+                               else "neutral", text, tip)
 
     def _copy_out(self, text: str):
         note_self_copy(text)

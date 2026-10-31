@@ -79,7 +79,7 @@ def test_slot_notfound_no_api_shows_state():
                     calls.append(("title", t))
             self.lb_title = LB()
 
-        def set_badge(self, k, t=""):
+        def set_badge(self, k, t="", tip=""):
             calls.append(("badge", k))
 
         def set_state(self, text):

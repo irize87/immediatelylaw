@@ -20,6 +20,14 @@ BADGE_TEXT = {
     "current": "현행", "check": "확인", "neutral": "로컬",
 }
 
+# 배지 호버 툴팁: '실시간 확인'인지 '데이터 기준'인지 구분해 알려준다.
+BADGE_TIP = {
+    "current": ("법제처 실시간 확인\n"
+                "현재 표시된 조문을 현행 법령과 대조한 결과입니다."),
+    "check": "실시간 확인 결과 재확인이 필요합니다.",
+    "neutral": "저장된 데이터 기준으로 표시합니다.",
+}
+
 
 class FooterBar(QWidget):
     """카드·조회창 공용 하단바: 글자크기 −/+(둥근 그룹) · 상태문구 · 링크 ·
@@ -34,21 +42,27 @@ class FooterBar(QWidget):
         lay.setContentsMargins(0, 2, 0, 0)
         lay.setSpacing(10)
 
-        # − / + 를 둥근 테두리 하나의 그룹으로 묶는다.
+        # − 가 + 를 둥근 테두리 하나의 그룹으로 묶는다.
         self.grp = QFrame(self)
         self.grp.setObjectName("fontGroup")
         gl = QHBoxLayout(self.grp)
         gl.setContentsMargins(3, 2, 3, 2)
         gl.setSpacing(2)
         self.btn_font_dec = self._btn("−", "글자 작게 (장·절·본문)")
+        self.lb_fontmark = QLabel("가")
+        self.lb_fontmark.setAlignment(Qt.AlignCenter)
+        self.lb_fontmark.setFixedWidth(20)
         self.btn_font_inc = self._btn("+", "글자 크게 (장·절·본문)")
         self.btn_font_dec.clicked.connect(lambda: self._step(-1))
         self.btn_font_inc.clicked.connect(lambda: self._step(1))
         gl.addWidget(self.btn_font_dec)
+        gl.addWidget(self.lb_fontmark)
         gl.addWidget(self.btn_font_inc)
 
         self.lb_state = QLabel("")
         self.lb_state.setFont(QFont("Malgun Gothic", 8))
+        # 원문 링크: 조문이 표시되면 set_article_link가 law.go.kr 해당 조문으로
+        # 바꾸고 라벨을 '조문 원문 ↗'로 바꾼다. 초기에는 센터 홈 안내.
         self.btn_site = self._link(
             "https://www.law.go.kr/", "법령정보센터 ↗",
             "국가법령정보센터(www.law.go.kr) 열기")
@@ -84,6 +98,7 @@ class FooterBar(QWidget):
 
     def apply_palette(self, p: dict):
         """테마 팔레트(theme.LIGHT/DARK)를 버튼·링크·상태 문구에 적용."""
+        self._pal = p
         self.lb_state.setStyleSheet(f"color:{p['fg2']};")
         self.grp.setStyleSheet(
             "#fontGroup{background:transparent;"
@@ -94,17 +109,56 @@ class FooterBar(QWidget):
             f"QPushButton:hover{{background:{p['hover']};border-radius:8px;}}")
         self.btn_font_dec.setStyleSheet(bss)
         self.btn_font_inc.setStyleSheet(bss)
+        self.lb_fontmark.setStyleSheet(
+            f"color:{p['fg2']};font-family:'Malgun Gothic';font-size:9pt;"
+            "font-weight:bold;background:transparent;border:none;}")
+        # 복사는 카드의 핵심 동작 — 강조색 채운 버튼으로 다른 버튼과 구분한다.
         self.btn_copy.setStyleSheet(
-            f"QPushButton{{border:none;border-radius:11px;"
-            f"background:{p.get('copy_bg', p['hover'])};color:{p['fg']};"
-            f"font-family:'Malgun Gothic';font-size:10pt;padding:6px 14px;}}"
-            f"QPushButton:hover{{background:{p['hover']};}}")
-        self.btn_copy.setIcon(self._copy_icon(p["fg"]))
+            f"QPushButton{{border:none;border-radius:10px;"
+            f"background:{p['accent']};color:{p['accent_fg']};"
+            f"font-family:'Malgun Gothic';font-size:10pt;font-weight:bold;"
+            f"padding:6px 16px;}}"
+            f"QPushButton:hover{{background:{p['accent_hover']};}}"
+            f"QPushButton:pressed{{background:{p['accent_hover']};}}")
+        self.btn_copy.setIcon(self._copy_icon(p["accent_fg"]))
+        self._paint_links()
+
+    def _paint_links(self):
+        p = getattr(self, "_pal", None)
+        if not p:
+            return
         for lb in (self.btn_site, self.btn_author):
             lb.setText(
                 "<a href='" + str(lb.property('url')) + "' style='color:"
-                + p['link'] + ";text-decoration:none'>"
+                + p['fg2'] + ";text-decoration:none'>"
                 + str(lb.property('label')) + "</a>")
+
+    def set_article_link(self, res):
+        """표시 중인 조문이 있으면 원문 링크를 law.go.kr 해당 조문으로 돌린다.
+
+        res None이면 법령정보센터 홈 안내로 되돌린다.
+        자치법규는 law.go.kr 조문 링크가 없으므로 원문 링크를 숨긴다."""
+        if res is None:
+            self.btn_site.setProperty("url", "https://www.law.go.kr/")
+            self.btn_site.setProperty("label", "법령정보센터 ↗")
+            self.btn_site.setToolTip(
+                "국가법령정보센터(www.law.go.kr) 열기")
+            self.btn_site.setVisible(True)
+            self._paint_links()
+            return
+        if res.get("source") == "local-reg":
+            self.btn_site.setVisible(False)
+            return
+        from urllib.parse import quote
+        url = ("https://www.law.go.kr/법령/"
+               + quote(str(res.get("law_name", "")))
+               + "/" + quote(f"제{res.get('art_no', '')}조"))
+        self.btn_site.setProperty("url", url)
+        self.btn_site.setProperty("label", "조문 원문 ↗")
+        self.btn_site.setToolTip(
+            "국가법령정보센터에서 이 조문의 원문 열기")
+        self.btn_site.setVisible(True)
+        self._paint_links()
 
     def set_state(self, text: str):
         self.lb_state.setText(text)
@@ -149,10 +203,13 @@ _HIST_RAW_RE = re.compile(
     r"|\[(?:전문개정|제정|일부개정|법률제[0-9-]+|시행)[^\]]*\]")
 
 
-def article_html(res: dict, pt: float = 11, dark: bool = False) -> str:
-    """장·절 표기와 본문이 같은 폰트(맑은 고딕)·같은 크기로 렌더된다."""
+def article_html(res: dict, pt: float = 11, dark: bool = False,
+                 show_chap: bool = True) -> str:
+    """장·절 표기와 본문이 같은 폰트(맑은 고딕)·같은 크기로 렌더된다.
+    show_chap=False면 chap 필드를 생략한다(카드처럼 보조 영역이 별도인 곳용)."""
     fg = "#e8eaed" if dark else "#20242b"
     fg2 = "#9aa3ad" if dark else "#5b6470"
+    acc = "#7fb0ff" if dark else "#2563eb"
     body = res.get("body", "")
     # 헤더에 이미 나오는 '제N조(제목)' 접두만 본문에서 제거
     body = re.sub(r"^\s*제\s*[0-9]+(?:의[0-9]+)?\s*조\s*[（(][^）)]*[）)]\s*",
@@ -180,18 +237,24 @@ def article_html(res: dict, pt: float = 11, dark: bool = False) -> str:
         marks = _HIST_RAW_RE.findall(p)
         p_text = _HIST_RAW_RE.sub("", p).strip() if marks else p
         if p_text:
+            # 항 번호 ①②는 강조색으로 물들여 시작점을 또렷하게 한다.
+            esc = html.escape(p_text)
+            m = re.match(r"^([%s])" % CIRCLED, p_text)
+            if m:
+                esc = (f'<span style="color:{acc};">{m.group(1)}</span>'
+                       + html.escape(p_text[1:]))
             parts.append(f'<p style="margin:4px 0 4px {ml};{style}'
-                         f'color:{fg};">{html.escape(p_text)}</p>')
+                         f'color:{fg};">{esc}</p>')
         if marks:
             line = "  ".join(m.strip() for m in marks)
             parts.append(f'<p style="margin:0 0 4px {ml};{hstyle}'
                          f'color:{fg2};">{html.escape(line)}</p>')
     inner = "".join(parts)
-    chap = res.get("chap")
-    chap_html = (f'<div style="{style}color:{fg2};margin-bottom:4px;">'
-                 f'{html.escape(chap)}</div>') if chap else ""
+    if show_chap and res.get("chap"):
+        inner = (f'<div style="{style}color:{fg2};margin-bottom:4px;">'
+                 f'{html.escape(res["chap"])}</div>') + inner
     # 주의: style 특성 안에 이중따옴표 금지(파싱 깨짐). 폰트도 강제로 지정.
-    return chap_html + inner
+    return inner
 
 
 def section_head(res: dict, pt: float, dark: bool) -> str:
@@ -201,20 +264,30 @@ def section_head(res: dict, pt: float, dark: bool) -> str:
              % pt)
     head = f"{res['law_name']} 제{res['art_no']}조"
     if res.get("title"):
-        head += f"({res['title']})"
+        head += f" ({res['title']})"
     if res.get("source") == "local-reg":
         head += "  [자치]"
     return (f'<div style="{style}font-weight:bold;color:{fg};'
             f'margin:0 0 2px 0;">{html.escape(head)}</div>')
 
 
-def articles_html_multi(res_list, pt: float = 11, dark: bool = False) -> str:
+def articles_html_multi(res_list, pt: float = 11, dark: bool = False,
+                        show_chap=None) -> str:
     """법+시행령 등 여러 조문을 이어서 표시 — 구간마다 법령명 헤더와
-    구분선(테마 색)으로 시각적 분리. 한 개면 기존 렌더와 동일."""
+    구분선(테마 색)으로 시각적 분리. 한 개면 기존 렌더와 동일.
+    마지막 줄이 하단 버튼에 붙지 않도록 끝에 여백 한 줄을 덧붙인다.
+
+    show_chap=None 자동: 조문 여러 건이면 각 구간 안에 장·절을 인라인으로
+    남기고, 한 건이면 생략한다(카드는 장·절 전용 보조 영역을 쓴다)."""
     if not res_list:
         return ""
+    if show_chap is None:
+        show_chap = len(res_list) > 1
+    tail = ('<p style="margin:0;line-height:1.3;"><span '
+            f'style="font-size:{max(pt - 4, 8):g}pt;">&nbsp;</span></p>')
     if len(res_list) == 1:
-        return article_html(res_list[0], pt, dark)
+        return article_html(res_list[0], pt, dark,
+                            show_chap=show_chap) + tail
     bd = "#39414b" if dark else "#d7dbe0"
     parts = []
     for i, res in enumerate(res_list):
@@ -222,8 +295,8 @@ def articles_html_multi(res_list, pt: float = 11, dark: bool = False) -> str:
             parts.append(f'<div style="border-top:1px solid {bd};'
                          f'margin:13px 0 9px 0;"></div>')
         parts.append(section_head(res, pt, dark))
-        parts.append(article_html(res, pt, dark))
-    return "".join(parts)
+        parts.append(article_html(res, pt, dark, show_chap=True))
+    return "".join(parts) + tail
 
 
 class OverlayCard(QWidget):
@@ -271,7 +344,7 @@ class OverlayCard(QWidget):
 
         top = QHBoxLayout(); top.setSpacing(8)
         self.lb_title = QLabel("")
-        f = QFont("Malgun Gothic", 11); f.setBold(True)
+        f = QFont("Malgun Gothic", 12); f.setBold(True)
         self.lb_title.setFont(f)
         self.lb_title.setStyleSheet("color:#20242b;")
         self.lb_badge = QLabel("")
@@ -289,6 +362,23 @@ class OverlayCard(QWidget):
         self.btn_close.clicked.connect(self.hide)
         top.addWidget(self.btn_close)
         lay.addLayout(top)
+
+        # 장·절 보조 영역: 본문과 분리해 조문 내용이 먼저 눈에 들어오게.
+        self.chap_bar = QFrame(self.body)
+        self.chap_bar.setObjectName("chapBar")
+        cl = QHBoxLayout(self.chap_bar)
+        cl.setContentsMargins(12, 6, 12, 6)
+        cl.setSpacing(10)
+        self.lb_chap_tag = QLabel("장 · 절")
+        tagf = QFont("Malgun Gothic", 8); tagf.setBold(True)
+        self.lb_chap_tag.setFont(tagf)
+        self.lb_chap = QLabel("")
+        self.lb_chap.setFont(QFont("Malgun Gothic", 9))
+        self.lb_chap.setWordWrap(True)
+        cl.addWidget(self.lb_chap_tag)
+        cl.addWidget(self.lb_chap, 1)
+        self.chap_bar.setVisible(False)
+        lay.addWidget(self.chap_bar)
 
         self.tv = QTextBrowser(self.body)
         self.tv.setOpenExternalLinks(False)
@@ -314,7 +404,7 @@ class OverlayCard(QWidget):
         self.lb_state = self.footer.lb_state   # Esc 안내/복사 문구용 별칭
         lay.addWidget(self.footer)
 
-        self._badge = ("neutral", "")
+        self._badge = ("neutral", "", BADGE_TIP["neutral"])
         self._refresh_palette()
 
     # ---------- 테마 ----------
@@ -339,6 +429,13 @@ class OverlayCard(QWidget):
         self._shadow.setColor(
             QColor(0, 0, 0, 110) if p["dark"] else QColor(30, 41, 59, 70))
         self.lb_title.setStyleSheet(f"color:{p['fg']};")
+        chap_bg = "#2b323b" if p["dark"] else "#f3f5f8"
+        self.chap_bar.setStyleSheet(
+            f"#chapBar{{background:{chap_bg};border:none;border-radius:10px;}}")
+        self.lb_chap_tag.setStyleSheet(
+            f"color:{p['fg2']};background:transparent;border:none;")
+        self.lb_chap.setStyleSheet(
+            f"color:{p['fg']};background:transparent;border:none;")
         self.btn_close.setStyleSheet(
             f"QPushButton{{border:none;border-radius:7px;"
             f"background:transparent;color:{p['fg2']};"
@@ -351,7 +448,7 @@ class OverlayCard(QWidget):
         self._apply_badge()
 
     def _apply_badge(self):
-        kind, text = self._badge
+        kind, text, tip = self._badge
         p = theme.palette(self.cfg)
         style = p.get(f"badge_{kind}") or p["badge_neutral"]
         self.lb_badge.setText(text)
@@ -359,6 +456,7 @@ class OverlayCard(QWidget):
         self.lb_badge.setStyleSheet(style + "padding:3px 10px;"
                                     "border-radius:11px;"
                                     "font-family:'Malgun Gothic';")
+        self.lb_badge.setToolTip(tip)
 
     @staticmethod
     def _screen_h():
@@ -379,13 +477,27 @@ class OverlayCard(QWidget):
         self._current_list = list(res_list)
         self._esc_at = 0.0
         self.lb_title.setText(self._combined_title(res_list))
+        # 장·절은 본문과 분리된 보조 영역에 (단일 조문일 때만 — 여러 건은
+        # 각 구간 안에 인라인으로 남긴다).
+        chap = (res.get("chap") or "") if len(res_list) == 1 else ""
+        self.chap_bar.setVisible(bool(chap))
+        if chap:
+            self.lb_chap.setText(chap)
         src = res.get("source")
         if src == "local-reg":
-            self.set_badge("neutral", "자치")
+            self.set_badge("neutral", "자치",
+                           "등록한 자치법규입니다.\n"
+                           "법령정보센터 실시간 확인 대상이 아닙니다.")
         elif res.get("pending"):
-            self.set_badge("check", "시행예정")
+            self.set_badge("check", "시행예정",
+                           "이 조문은 시행예정 법령 데이터입니다.\n"
+                           "실제 시행일과 내용을 다시 확인하세요.")
         else:
-            self.set_badge("neutral", "조회")
+            self.set_badge("neutral", "조회",
+                           "실시간 확인 전 — 저장된 데이터 기준으로 "
+                           "표시합니다.")
+        self.footer.set_article_link(
+            res if len(res_list) == 1 else None)
         perf.mark(rid, "html_start", items=len(res_list))
         self.tv.setHtml(articles_html_multi(
             res_list, self._pt(), theme.palette(self.cfg)["dark"]))
@@ -406,7 +518,7 @@ class OverlayCard(QWidget):
         def head1(res):
             h = f"{res['law_name']} 제{res['art_no']}조"
             if res.get("title"):
-                h += f"({res['title']})"
+                h += f" ({res['title']})"
             if res.get("source") == "local-reg":
                 h += "  [자치]"
             return h
@@ -445,8 +557,10 @@ class OverlayCard(QWidget):
         if not str(self.cfg["overlay_corner"]).startswith("top"):
             self.move(self.x(), bottom - h)
 
-    def set_badge(self, kind: str, text: str = ""):
-        self._badge = (kind, text or BADGE_TEXT.get(kind, ""))
+    def set_badge(self, kind: str, text: str = "", tip: str = ""):
+        """배지 갱신. tip 생략 시 kind 기본 문구( BADGE_TIP )를 쓴다."""
+        self._badge = (kind, text or BADGE_TEXT.get(kind, ""),
+                       tip or BADGE_TIP.get(kind, ""))
         self._apply_badge()
 
     def set_state(self, text: str):

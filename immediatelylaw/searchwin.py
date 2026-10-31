@@ -186,6 +186,7 @@ class SearchWindow(QWidget):
             self.tv.setHtml("<p style='color:#b45309;padding:12px;'>"
                             "법제처에서도 찾지 못했습니다.</p>")
             self._show_badge("check", "확인")
+            self.footer.set_article_link(None)
 
     def _show_result(self, res, note=""):
         self._last_res = res
@@ -196,6 +197,7 @@ class SearchWindow(QWidget):
         src = res.get("source")
         self._push_history(res)
         self._render()
+        self.footer.set_article_link(res)
         if src == "local-reg":
             self._show_badge("neutral", "자치")
             self.footer.set_state("등록 자치법규")
