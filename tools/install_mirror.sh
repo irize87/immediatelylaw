@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 즉시로 배포 미러 1회 설치(서버 root) — 자체서명 인증서 + systemd 서비스.
+# 즉시로 배포 서버 1회 설치(서버 root) — 자체서명 인증서 + systemd 서비스.
 # 사용: sudo bash tools/install_mirror.sh
 set -e
 SUDO_USER_HOME="$(getent passwd "${SUDO_USER:-ubuntu}" | cut -d: -f6)"
@@ -30,7 +30,7 @@ chown -R "${SUDO_USER:-ubuntu}":"${SUDO_USER:-ubuntu}" "$DIR"
 
 cat >/etc/systemd/system/immediatelylaw-mirror.service <<EOF
 [Unit]
-Description=ImmediatelyLaw distribution mirror (static HTTPS)
+Description=ImmediatelyLaw distribution server (static HTTPS)
 After=network-online.target
 
 [Service]
@@ -46,4 +46,4 @@ systemctl daemon-reload
 systemctl enable --now immediatelylaw-mirror.service
 sleep 1
 systemctl is-active immediatelylaw-mirror.service && \
-    echo "미러 서비스 실행 중 — https://$IP/manifest.json (OCI 보안 리스트 443 허용 필요)"
+    echo "배포 서버 실행 중 — https://$IP/manifest.json (방화벽·보안 리스트에서 443 허용 필요)"

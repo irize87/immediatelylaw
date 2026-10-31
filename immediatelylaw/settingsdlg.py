@@ -127,9 +127,9 @@ class SettingsDialog(QDialog):
         lay.addWidget(lb)
         row = QHBoxLayout()
         self.ed_url = QLineEdit(self.cfg["data_base_url"])
-        self.ed_url.setPlaceholderText("데이터 배포 주소 (…/immediatelylaw-data/dist)")
-        self.ed_url.setToolTip("이 주소가 죽으면 내장 자가 미러·추가 채널로 "
-                               "자동 전환됩니다.")
+        self.ed_url.setPlaceholderText("비우면 기본 배포 서버를 사용합니다")
+        self.ed_url.setToolTip("직접 운영한 배포 서버 주소로 바꾸면 그곳을 먼저,\n"
+                               "실패하면 기본 배포 서버로 자동 전환됩니다.")
         row.addWidget(QLabel("배포 주소"))
         row.addWidget(self.ed_url, 1)
         lay.addLayout(row)
@@ -485,8 +485,7 @@ class SettingsDialog(QDialog):
             + a("https://github.com/nazgregory/ImmediatelyLaw",
                 "github.com/nazgregory/ImmediatelyLaw") + " (MIT)</td></tr>"
             f"<tr><td style='{td}'>법령 데이터</td><td>"
-            + a("https://github.com/nazgregory/immediatelylaw-data",
-                "immediatelylaw-data")
+            + a("https://152.67.205.216/manifest.json", "자가 배포 서버")
             + " — 국가법령정보센터(법제처) 개방 데이터</td></tr>"
             "</table>")
         info.setTextFormat(Qt.RichText)

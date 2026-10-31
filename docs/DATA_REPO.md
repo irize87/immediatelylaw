@@ -1,101 +1,90 @@
-# 데이터 저장소 운영 가이드 — immediatelylaw-data
+# 배포 서버 운영 가이드
 
-사용자 앱이 법령 데이터를 내려받는 저장소
-[github.com/nazgregory/immediatelylaw-data](https://github.com/nazgregory/immediatelylaw-data)
-를 매일 최신 상태로 유지하는 방법입니다.
-데이터를 발행할 PC(발행 PC)에는 이 소스와 Python, 그리고
-[국가법령정보 공동활용](https://open.law.go.kr/LSO/main.do) **OC 인증키**가 필요합니다.
+사용자 앱이 법령 데이터와 설치 파일을 내려받는 **배포 서버**를 직접 운영하며
+매일 최신 상태로 유지하는 방법입니다. 데이터를 발행할 서버(발행 서버)에는 이
+소스와 Python, 그리고 [국가법령정보 공동활용](https://open.law.go.kr/LSO/main.do)
+**OC 인증키**가 필요합니다.
 
-## 저장소 구조
+소스 코드 공개 저장소(GitHub)는 코드 전용이며, 대용량 데이터·설치 파일은
+git 저장소에 올리지 않습니다. 배포는 아래 배포 서버만 사용합니다.
 
-- 브랜치 **`dist`** 한 개만 사용(고아 브랜치). 파일은 평면 배치:
-  ```
-  manifest.json                        ← 앱이 매일 읽는 버전/무결성 정보
-  immediatelylaw-<버전>.db.xz          ← 전체 스냅샷(xz, 약 20MB)
-  delta-<버전>.json.xz                 ← (선택) 개정분 델타
-  ```
-- 앱은 `https://raw.githubusercontent.com/nazgregory/immediatelylaw-data/dist/manifest.json`
-  의 `data_ver`를 로컬과 비교해 다르면 스냅샷을 받고 SHA-256을 검증합니다.
+## 배포 서버가 제공하는 파일(레이아웃)
 
-## 매일의 갱신 사이클 (수동)
+HTTPS로 아래 폴더(예: `~/immediatelylaw-mirror`)를 그대로 공개하면 됩니다.
 
-발행 PC에서 프로젝트 폴더에 PowerShell을 열고:
+```
+manifest.json                        ← 앱이 매일 읽는 버전/무결성 정보
+immediatelylaw-<버전>.db.xz          ← 전체 스냅샷(xz, 약 30MB, 최신 1개만 유지)
+delta-<버전>.json.xz                 ← 개정분 델타(최근 30개)
+app-latest.json                      ← 프로그램 자체 업데이트 정보(sha256 포함)
+ImmediatelyLaw-online-<버전>.zip     ← 설치 파일(온라인)
+ImmediatelyLaw-offline-<버전>.zip    ← 설치 파일(오프라인, 데이터 동봉)
+index.html · capitol.jpg …           ← 랜딩 페이지
+```
+
+앱은 `https://<배포서버>/manifest.json`의 `data_ver`를 로컬과 비교해 다르면
+스냅샷(또는 델타 체인)을 받고 SHA-256을 검증합니다. 자체서명 인증서를 쓰면
+앱이 **인증서 DER SHA-256 고정(pinning)**으로 검증하므로 CA 등록이 필요 없고,
+브라우저 접속 시에는 "자세히 → 계속" 안내면 됩니다(`tools/mirror_serve.py` 참고).
+
+## 매일의 발행 사이클
+
+### 자동(권장) — cron
+
+발행 서버의 crontab에 한 줄이면 충분합니다.
+
+```cron
+CRON_TZ=Asia/Seoul
+0 3 * * * $HOME/ImmediatelyLaw/tools/daily_update_server.sh
+```
+
+`tools/daily_update_server.sh`는 순서대로:
+1. `tools.publisher update` — 개정·폐지 법령만 수집(바뀐 게 없으면 버전만 갱신)
+2. `tools.publisher package` — `data/dist/`에 새 스냅샷·델타·manifest 생성
+3. 전체 스냅샷은 최신 1개만 유지한 뒤, **배포 서버 폴더로 복사** — 그것으로 발행 끝
+
+사전 준비: `$APP/.env`에 `export IMMEDIATELYLAW_OC=<OC키>`(chmod 600),
+배포 서버 폴더를 HTTPS로 제공하는 서비스(systemd + `tools/mirror_serve.py`).
+
+### 수동(테스트·복구)
+
+발행 PC에서 프로젝트 폴더에 PowerShell(또는 서버에서 bash)로:
 
 ```powershell
 $env:IMMEDIATELYLAW_OC='본인OC키'      # 설정에 저장해뒀으면 생략 가능
 python -m tools.publisher update       # 개정·폐지 법령만 수집 (대개 수 분)
 python -m tools.publisher package      # data/dist/에 새 스냅샷 + manifest 생성
-python -m tools.push_dist --repo https://github.com/nazgregory/immediatelylaw-data.git `
-    --msg "daily 2026-10-29"           # dist 브랜치에 push
 ```
 
-- `update`는 법령 목록 재열거(약 1분) 후 마스터와 비교해 바뀐 법령만 다시 수집합니다.
-  바뀐 게 0개면 스냅샷만 새로 올리고 끝납니다(버전만 갱신).
-- `push_dist`는 `data/_distrepo`에 저장소를 클론해 두고 `data/dist` 내용을
-  `dist` 브랜치에 미러링합니다. 첫 실행 시 자동 클론되므로 추가 설정이 필요 없습니다.
-- git 인증이 처음이면 `gh auth login`(또는 PAT)으로 로그인해 두세요.
-
-## 공식 데이터는 매일 자동 최신화 됩니다
-
-공식 데이터베이스(https://github.com/nazgregory/immediatelylaw-data)는 매일 03시에 법령 변경 사항이 자동으로 최신화 됩니다
-
-## PC 수동 최신화
-
-PC에서 수동 발행도 그대로 가능합니다(설정에 OC 키 저장 시 불필요):
-
-```powershell
-$env:IMMEDIATELYLAW_OC = '본인OC키'
-python -m tools.publisher update
-python -m tools.publisher package
-python -m tools.push_dist --repo https://github.com/nazgregory/immediatelylaw-data.git
-```
-
-수동 백업용 크론 예시(과거 방식):
-
-PowerShell 스크립트를 만들고(`tools/daily_update.ps1` 예):
-
-```powershell
-Set-Location C:\path\to\ImmediatelyLaw
-$env:IMMEDIATELYLAW_OC = '본인OC키'
-python -m tools.publisher update  *>> data\daily.log
-python -m tools.publisher package *>> data\daily.log
-python -m tools.push_dist --repo https://github.com/nazgregory/immediatelylaw-data.git `
-    --msg ("daily " + (Get-Date -Format s)) *>> data\daily.log
-```
-
-작업 스케줄러에서 매일 시각(예: 07:00)에 아래 명령을 실행하도록 등록합니다.
-(사용자 로그인 상태에서 실행 — gh 인증은 사용자 계정에 저장되어 있습니다)
-
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\path\to\ImmediatelyLaw\tools\daily_update.ps1
-```
-
-한 번의 명령으로 등록하려면(관리자 불필요 — 로그인 상태 실행):
-
-```powershell
-$a = New-ScheduledTaskAction -Execute 'powershell.exe' `
-    -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\path\to\ImmediatelyLaw\tools\daily_update.ps1' `
-    -WorkingDirectory 'C:\path\to\ImmediatelyLaw'
-Register-ScheduledTask -TaskName 'ImmediatelyLaw-DailyUpdate' -Action $a `
-    -Trigger (New-ScheduledTaskTrigger -Daily -At 3am) `
-    -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew)
-```
+그 다음 `data/dist/` 내용을 배포 서버 폴더에 복사(또는 scp)하면 발행됩니다.
 
 ## 초기 전체 수집 (재해복구·처음 구축)
 
 ```powershell
 python -m tools.publisher build        # 전체 현행 법령 수집(재개 지원, 약 35분)
 python -m tools.publisher package
-python -m tools.push_dist --repo <데이터 저장소 URL> --msg "initial"
 ```
 
 DB가 망가졌을 때도 동일합니다. 중간에 종료되면 같은 명령을 다시 실행하면 이어서 합니다.
+생성된 `data/dist/`를 배포 서버 폴더로 복사하면 새 배포 서버가 그대로 완성됩니다.
+
+## 프로그램 릴리스 발행
+
+새 버전을 만들면(README의 빌드 안내 참고):
+
+```powershell
+python -m tools.make_release --server ubuntu@<발행서버>
+```
+
+`app-latest.json`(버전·크기·SHA-256)과 설치 zip 2종을 생성해 발행 서버의
+`data/dist/`로 scp하고, 이후 배포 서버 폴더 동기화로 사용자 앱에 반영됩니다.
+앱의 자동 업데이트는 이 `app-latest.json`만 사용하며 SHA-256 검증을 요구합니다.
 
 ## 오프라인 배포본 만들기
 
 오프라인 환경 사용자에게 줄 zip은 **앱 폴더에 스냅샷을 동봉**하면 됩니다.
 앱은 데이터가 비어 있으면 exe 옆의 `immediatelylaw-*.db.xz`를 찾아 네트워크 없이
-복원합니다.
+복원합니다. (`tools/make_release.py`가 이 작업을 자동화합니다.)
 
 ```powershell
 Copy-Item data\dist\immediatelylaw-*.db.xz dist\ImmediatelyLaw\
@@ -106,6 +95,10 @@ Compress-Archive dist\ImmediatelyLaw\* ImmediatelyLaw-offline.zip
 
 ```powershell
 python -m tools.publisher status       # DB 규모·버전·미완성/실패 건수
+```
+
+```bash
+curl -k https://<배포서버>/manifest.json   # 발행된 판 확인
 ```
 
 - `미완/실패 표시`가 0이 아니면 `python -m tools.publisher build`로 실패분 재시도.

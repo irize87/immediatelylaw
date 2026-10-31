@@ -6,7 +6,7 @@
   pyinstaller ImmediatelyLaw.spec             # 먼저 빌드
   python -m tools.make_release                # out/ 에 산출물 생성
   python -m tools.make_release --server ubuntu@100.109.191.50
-        # 추가로 서버 data/dist 에 scp(다음 cron이 미러·저장소로 발행)
+        # 추가로 서버 data/dist 에 scp(다음 cron이 배포 서버로 발행)
 
 산출물:
   out/ImmediatelyLaw-online-<ver>.zip    (프로그램만)
@@ -112,7 +112,7 @@ def main():
             subprocess.run(["scp", p,
                             f"{a.server}:ImmediatelyLaw/data/dist/"],
                            check=True)
-        print("서버 반영 완료 — 이후 daily 또는 미러 동기화에서 발행됩니다.")
+        print("서버 반영 완료 — 이후 daily 또는 배포 서버 동기화에서 발행됩니다.")
 
 
 if __name__ == "__main__":

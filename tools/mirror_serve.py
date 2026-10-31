@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""즉시로 자체 배포 미러 — 표준 라이브러리 기반 정적 HTTPS 파일 서버.
+"""즉시로 배포 서버 — 표준 라이브러리 기반 정적 HTTPS 파일 서버.
 
 데이터/프로그램 배포 파일(manifest.json, *.db.xz, delta-*.json.xz,
 app-latest.json, *.zip)이 있는 폴더를 읽기 전용으로 제공한다.
@@ -81,7 +81,7 @@ def main():
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(a.cert, a.key)
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
-        print(f"즉시로 미러: https://0.0.0.0:{a.port} ← {a.dir}", flush=True)
+        print(f"즉시로 배포 서버: https://0.0.0.0:{a.port} ← {a.dir}", flush=True)
         httpd.serve_forever()
 
 

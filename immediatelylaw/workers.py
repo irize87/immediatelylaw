@@ -38,13 +38,17 @@ def _https(url: str) -> str:
     return url
 
 
-# ---------- 배포 채널(멀티 호스트 폴백) ----------
+# ---------- 배포 채널 ----------
+# 배포(데이터·프로그램·앱) 채널의 1순위는 자가 배포 서버(자체서명)다.
+# GitHub는 소스 코드 공개 전용으로만 쓰고 데이터 채널에서는 제외한다(2026-10-,
+# 대용량 데이터의 git 푸시·raw 배포가 AUP상 과도한 파일호스팅으로 분류될 수 있어
+# publisher도 더 이상 GitHub dist 브랜치에 push하지 않는다).
 # 같은 레이아웃(manifest.json / delta-*.json.xz / immediatelylaw-*.db.xz /
-# app-latest.json)을 배포하는 채널을 순서대로 시도한다. 한 채널이 죽어도
-# (저장소 정지·차단) 나머지 채널로 데이터·프로그램 업데이트가 계속된다.
-GH_DATA_BASE = ("https://raw.githubusercontent.com/nazgregory/"
-                "immediatelylaw-data/dist")
-MIRROR_BASE = "https://152.67.205.216"   # 자가 배포 미러(Oracle 서버, 자체서명)
+# app-latest.json)을 배포하는 채널을 순서대로 시도한다.
+# 구버전 설정에 남아 있을 수 있는 옛 기본값만 걸러 쓰기 위한 상수다.
+LEGACY_GH_DATA_BASE = ("https://raw.githubusercontent.com/nazgregory/"
+                       "immediatelylaw-data/dist")
+MIRROR_BASE = "https://152.67.205.216"   # 자가 배포 서버(자체서명, 인증서 고정)
 UA = "immediatelylaw-updater"
 
 # 고정(pinning) 채널은 의도적으로 verify=False + 사후 지문 검증 구조라
@@ -53,12 +57,12 @@ UA = "immediatelylaw-updater"
 import urllib3  # noqa: E402
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# 자체서명 미러 인증서 고정: 호스트 → 인증서(DER) sha256.
+# 자체서명 배포 서버 인증서 고정: 호스트 → 인증서(DER) sha256.
 # 인증서 재생성 시 서버의 cert_hash.txt 값을 here로 옮겨 갱신한다.
 CERT_PINS = {
     "152.67.205.216": "590abe364c339a0dcdbe4ccfc82ea16179637768f1f2"
                       "7caa71cdc11c882d08d8",
-    # 운영자 PC는 테일넷 경로로도 같은 미러에 접근한다(같은 인증서).
+    # 운영자 PC는 테일넷 경로로도 같은 배포 서버에 접근한다(같은 인증서).
     # 이 주소는 배포 채널 기본값에 없고 사용자가 설정한 경우에만 쓰인다.
     "100.109.191.50": "590abe364c339a0dcdbe4ccfc82ea16179637768f1f2"
                       "7caa71cdc11c882d08d8",
@@ -103,14 +107,20 @@ def _verify_flag(url: str) -> bool:
 
 
 def data_host_list(cfg) -> list:
-    """cfg 기준의 채널 순서 목록(비어 있음·중복 제거)."""
-    raw = [cfg.get("data_base_url") or GH_DATA_BASE, MIRROR_BASE,
+    """cfg 기준의 채널 순서 목록(비어 있음·중복·옛 GitHub 기본값 제거).
+
+    순서: 사용자가 지정한 배포 주소(설정, 있으면 우선) → 내장 배포 서버 →
+    추가 채널(mirror_url). 전부 실패하면 업데이트만 멈추고 앱·데이터는 지금
+    상태로 계속 동작한다."""
+    raw = [cfg.get("data_base_url") or "", MIRROR_BASE,
            cfg.get("mirror_url") or ""]
+    legacy = LEGACY_GH_DATA_BASE.rstrip("/")
     out = []
     for u in raw:
         u = (u or "").strip().rstrip("/")
-        if u and u not in out:
-            out.append(u)
+        if not u or u in out or u == legacy:
+            continue
+        out.append(u)
     return out
 
 
@@ -364,15 +374,12 @@ class UpdaterWorker(QThread):
         raise IOError(" / ".join(errs) or "스냅샷 다운로드 실패")
 
 
-# ---------- 프로그램 자체 업데이트(GitHub Releases) ----------
-GH_LATEST_URL = ("https://api.github.com/repos/nazgregory/"
-                 "ImmediatelyLaw/releases/latest")
-# 설치 파일을 내려받아도 되는 공식 호스트만 허용(리디렉트도 검증).
-# 자체 미러/사용자 채널 호스트는 확인 시점에 extra로 추가된다.
-UPDATE_HOSTS = {"api.github.com", "github.com",
-                "codeload.github.com", "objects.githubusercontent.com",
-                "release-assets.githubusercontent.com"}
-MAX_ZIP_BYTES = 300 * 1024 * 1024   # 설치 zip 상한(실측 ~62MB)
+# ---------- 프로그램 자체 업데이트(배포 서버 app-latest.json) ----------
+# 설치 파일을 내려받아도 되는 호스트는 배포 채널 호스트로 한정한다
+# (확인 시점의 채널 호스트가 AppDownloadWorker에서 extra로 전달된다).
+# GitHub는 소스 코드 공개 전용이며 배포·다운로드 채널로 쓰지 않는다.
+UPDATE_HOSTS = set()
+MAX_ZIP_BYTES = 300 * 1024 * 1024   # 설치 zip 상한(실측 ~89MB)
 
 
 def _ver_tuple(s: str):
@@ -389,7 +396,7 @@ def _host_ok(url: str, extra=()) -> bool:
 
 
 class AppUpdateWorker(QThread):
-    """최신 릴리스 확인: 배포 채널의 app-latest.json 우선, GitHub API 폴백.
+    """최신 릴리스 확인: 배포 채널의 app-latest.json만 사용한다.
 
     app-latest.json = {version, updated,
                        files: {online|offline: {file, size, sha256}}}
@@ -430,7 +437,7 @@ class AppUpdateWorker(QThread):
                 ver, h, pick = best
                 url = h + "/" + pick["file"].lstrip("/")
                 if not _url_pin_ok(url):
-                    self.failed.emit("미러 인증서 고정 검증에 실패했습니다.")
+                    self.failed.emit("배포 서버 인증서 고정 검증에 실패했습니다.")
                     return
                 self.found.emit({
                     "version": ver.lstrip("vV"), "url": url,
@@ -441,36 +448,10 @@ class AppUpdateWorker(QThread):
             if best:
                 self.latest.emit()      # 채널들이 확인됐고 전부 현재 이하
                 return
-            self._github_fallback(errs)
+            # 어떤 채널도 응답하지 못함 — 배포 서버 접속 실패로 처리
+            self.failed.emit("; ".join(errs)[:260] or "배포 서버에 연결하지 못했습니다.")
         except Exception as e:
             self.failed.emit(str(e))
-
-    def _github_fallback(self, errs):
-        """채널manifest 실패 시 기존 GitHub Releases 경로(레거시)."""
-        try:
-            r = requests.get(GH_LATEST_URL, timeout=15,
-                             headers={"User-Agent": UA})
-            r.raise_for_status()
-            j = r.json()
-            tag = (j.get("tag_name") or "").strip()
-            if _ver_tuple(tag) <= _ver_tuple(self.cur_ver):
-                self.latest.emit()
-                return
-            want = ("ImmediatelyLaw-offline.zip" if self.offline
-                    else "ImmediatelyLaw-online.zip")
-            assets = {a.get("name"): a for a in j.get("assets", [])}
-            a = assets.get(want) or assets.get("ImmediatelyLaw-online.zip")
-            url = (a or {}).get("browser_download_url", "")
-            if not a or not _host_ok(url):
-                self.failed.emit("새 릴리스에서 설치 파일을 찾지 못했습니다.")
-                return
-            self.found.emit({
-                "version": tag.lstrip("vV"), "url": url,
-                "size": int(a.get("size") or 0), "sha256": "",
-                "page": j.get("html_url", "")})
-        except Exception as e:
-            detail = ("; ".join(errs)[:200] + " / " if errs else "") + str(e)
-            self.failed.emit(detail)
 
 
 class AppDownloadWorker(QThread):
@@ -493,7 +474,7 @@ class AppDownloadWorker(QThread):
             start_host = urlparse(url).hostname or ""
             extra = {start_host}
             if not _url_pin_ok(url):
-                raise IOError("미러 인증서 고정 검증 실패")
+                raise IOError("배포 서버 인증서 고정 검증 실패")
             fd, zpath = tempfile.mkstemp(suffix=".zip",
                                          prefix="immediatelylaw-")
             got = total = 0

@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.3.9-blue" alt="v1.3.9">
+  <img src="https://img.shields.io/badge/version-v1.3.10-blue" alt="v1.3.10">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Windows 10/11">
   <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
@@ -41,17 +41,17 @@
 
 ## 설치 방법
 
-### 다운로드 (편한 곳)
+### 다운로드 — 공식 배포 서버
 
-| 버전 | GitHub Releases | GitLab 직접 다운로드 | 배포용 서버 |
-|---|---|---|---|
-| 온라인(앱만) | [Releases](https://github.com/nazgregory/ImmediatelyLaw/releases) | [ImmediatelyLaw-online.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/download/ImmediatelyLaw-online.zip) | [ImmediatelyLaw-online-1.3.9.zip](https://152.67.205.216/ImmediatelyLaw-online-1.3.9.zip) |
-| 오프라인(앱+데이터) | [Releases](https://github.com/nazgregory/ImmediatelyLaw/releases) | [ImmediatelyLaw-offline.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/download/ImmediatelyLaw-offline.zip) | [ImmediatelyLaw-offline-1.3.9.zip](https://152.67.205.216/ImmediatelyLaw-offline-1.3.9.zip) |
+| 버전 | 배포 서버 (공식) |
+|---|---|
+| 온라인(앱만) | [ImmediatelyLaw-online.zip](https://152.67.205.216/ImmediatelyLaw-online-1.3.10.zip) |
+| 오프라인(앱+데이터) | [ImmediatelyLaw-offline.zip](https://152.67.205.216/ImmediatelyLaw-offline-1.3.10.zip) |
 
-> GitHub가 가장 최신이며, GitLab은 **`download` 브랜치**에 같은 설치 zip을 두어
-> 릴리즈 화면 없이도 파일을 바로 받을 수 있습니다. 링크가 열리지 않으면 저장소에서
-> 브랜치를 `download`로 바꾼 뒤 파일의 [Raw]를 누르세요.
-> 배포용 서버는 자체서명 인증서를 쓰므로 브라우저가 경고하면 "자세히 → 계속"을 누르면 됩니다.
+> 배포 서버가 다운로드·데이터 갱신의 유일한 공식 채널입니다.
+> 버전·무결성 정보는 같은 주소의 [app-latest.json](https://152.67.205.216/app-latest.json)에 있습니다.
+> 배포 서버는 자체서명 인증서를 쓰므로 브라우저가 경고하면 "자세히 → 계속"을 누르면 됩니다.
+> 이 저장소(GitHub)는 **소스 코드 공개 전용**이며 설치 파일은 배포 서버에서만 받습니다.
 
 zip을 받아 압축을 풉니다. 
 
@@ -73,7 +73,7 @@ zip을 받아 압축을 풉니다.
 ### Windows의 PC 보호 (파란 경고창)
 1. Windows의 PC 보호 : **Microsoft Defender SmartScreen에서 인식할 수 없는 앱의 시작을 차단했습니다. 이 앱을 실행하면 PC가 위험에 노출될 수 있습니다.** 라는 메시지가 발견되면, 추가정보 > **실행**을 클릭합니다.
 2. 이 프로그램의 소스코드는 공개되어 있어 누구나 안전성을 검증할 수 있습니다.
-3.  반드시 공식 저장소(https://github.com/nazgregory/ImmediatelyLaw/releases)에서 다운로드 한 파일을 사용하세요.
+3.  반드시 공식 배포 서버(https://152.67.205.216/)에서 다운로드 한 파일을 사용하세요. 배포 서버의 app-latest.json에 파일별 SHA-256이 게시되어 있습니다.
 
 ---
 
@@ -135,13 +135,13 @@ zip을 받아 압축을 풉니다.
 
 ## 업데이트 원리
 
-앱은 데이터 저장소 [immediatelylaw-data](https://github.com/nazgregory/immediatelylaw-data)
-`dist` 브랜치를 주기적으로(8시간 + 시작 시) 확인합니다. 새 버전이 있으면
-새 스냅샷을 다운로드해 SHA-256 검증 후 교체합니다. 다운로드는 HTTPS로만
-이루어지며 검증 실패 시 적용되지 않습니다. 모든 최신화는 자동화 되어 있습니다.
+앱은 내장된 **공식 배포 서버**(기본값 내장 — 설정에서 직접 운영 서버로 변경 가능)를
+주기적으로(8시간 + 시작 시) 확인합니다. `manifest.json`의 `data_ver`가 로컬과 다르면
+새 스냅샷(또는 델타)을 다운로드해 SHA-256 검증 후 적용합니다. 다운로드는 HTTPS로만
+이루어지며 검증 실패 시 적용되지 않습니다. 모든 최신화는 자동화되어 있습니다.
 
-데이터 저장소를 직접 운영(매일 최신화)하는 방법은
-[데이터 저장소 운영 가이드](docs/DATA_REPO.md)를 참고하세요.
+배포 서버를 직접 운영(매일 최신화)하는 방법은
+[배포 서버 운영 가이드](docs/DATA_REPO.md)를 참고하세요.
 
 ---
 
@@ -159,7 +159,7 @@ python run.py            # 창 없이 실행: pythonw run.py
 - 데이터 경로: 개발 중 `data/`, 설치본 `%APPDATA%\immediatelylaw\data\`
   (환경변수 `IMMEDIATELYLAW_DATA_DIR`로 변경 가능)
 - 코드 구조: `immediatelylaw/` 앱 본체(watcher·overlay·resolver·db·workers…),
-  `tools/` 데이터 수집·배포(publisher·push_dist)
+  `tools/` 데이터 수집·배포(publisher·daily_update_server)
 
 ## 의존 라이브러리 및 라이선스
 
