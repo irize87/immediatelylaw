@@ -3,110 +3,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>즉시로 · 복사하면 조문이 바로 뜹니다</title>
-<meta name="description" content="법령 인용을 복사하는 순간 화면 우측 하단에 조문 전문이 뜨는 무료 오픈소스 Windows 앱. 5,631개 현행 법령·20만 조문, 오프라인 동작, 매일 델타 갱신.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23133621'/%3E%3Cpath d='M13 6H6v7h3v-4h4z' fill='%23f4d96c'/%3E%3C/svg%3E">
+<title>즉시로 · 복사하면 화면 구석에 조문이 바로</title>
+<meta name="description" content="법령 인용을 복사하는 순간 화면 우측 하단에 조문 전문이 뜨는 무료 오픈소스 Windows 앱. 오프라인 동작, 매일 자동 갱신.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M13 6H6v7h3v-4h4z' fill='%23ffffff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://api.fontshare.com">
-<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 :root{
-  /* 방향: One motif · 팔레트 Bottle green, gold(법전 표지) */
-  --bg:#133621; --surface:#1a4429; --surface2:#215233;
-  --ink:#f4d96c; --muted:#c9b777;
-  --accent:#f4d96c; --accent-ink:#133621;
-  /* 모티프: 인용 괄호 「 의 우각(clamp 10px)을 자른 형태 하나만 전역에서 쓴다 */
-  --notch:polygon(12px 0,100% 0,100% 100%,0 100%,0 12px);
+  /* 컨셉: 문서 위의 파란 스탬프 — 화이트 지면 + #2563EB 액센트 */
+  --blue:#2563eb; --blue-deep:#1e4fc2; --blue-wash:#eef4ff;
+  --ink:#0f172a; --muted:#5b6b7c;
+  --bg:#ffffff; --surface:#f6f9fe;
   --step-small:clamp(0.8125rem,0.79rem + 0.1vw,0.875rem);
   --step-body:clamp(1.0625rem,1rem + 0.25vw,1.1875rem);
   --step-lead:clamp(1.25rem,1.1rem + 0.7vw,1.625rem);
-  --step-head:clamp(2rem,1.3rem + 3.2vw,4rem);
-  --step-display:clamp(3.5rem,9vw,8.75rem);
-  --margin:clamp(20px,3vw,44px);
+  --step-head:clamp(2rem,1.4rem + 2.8vw,3.5rem);
+  --step-display:clamp(2.75rem,7vw,4.75rem);
+  --margin:clamp(20px,3.4vw,52px);
+  --radius:14px;
   --font:"General Sans","Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif;
-  /* 제품 인터페이스의 실제 색(theme.py) */
+  /* 제품 인터페이스 실물 색(theme.py) */
   --u-bg:#ffffff; --u-fg:#20242b; --u-fg2:#5f6b7a; --u-bd:#e2e6ea;
   --u-hover:#eef2f8; --u-link:#2563eb; --u-copy:#f3f4f6;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth;overflow-x:clip}
 body{font-family:var(--font);background:var(--bg);color:var(--ink);
-  font-size:var(--step-body);line-height:1.45;-webkit-font-smoothing:antialiased;
-  overflow-x:clip}
+  font-size:var(--step-body);line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:clip}
 img{display:block;max-width:100%}
 a{color:inherit}
-:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
-::selection{background:var(--ink);color:var(--accent-ink)}
-h1,h2,h3{font-weight:700;line-height:0.95;letter-spacing:-0.02em}
-small{font-size:var(--step-small)}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+::selection{background:var(--blue);color:#fff}
+h1,h2,h3{font-weight:700;line-height:1.04;letter-spacing:-0.025em}
 .muted{color:var(--muted)}
-.notch{clip-path:var(--notch)}
-.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);
-  font-weight:700;font-size:var(--step-body);letter-spacing:-0.01em;
-  padding:15px 26px;border:0;cursor:pointer;text-decoration:none;
-  clip-path:var(--notch);font-family:var(--font)}
-.btn:hover{filter:brightness(1.07)}
+.btn{display:inline-flex;align-items:center;gap:10px;background:var(--blue);color:#fff;
+  font-weight:700;font-size:var(--step-body);letter-spacing:-0.01em;border:0;cursor:pointer;
+  padding:15px 28px;border-radius:var(--radius);text-decoration:none;font-family:var(--font);
+  min-height:52px}
+.btn:hover{background:var(--blue-deep)}
 .btn:active{transform:translateY(1px)}
-[data-rv]{opacity:0;transform:translateY(18px);transition:opacity .28s ease,transform .28s ease}
+.btn.ghost{background:var(--blue-wash);color:var(--blue)}
+.btn.ghost:hover{background:#e0ebff}
+[data-rv]{opacity:0;transform:translateY(16px);transition:opacity .3s ease,transform .3s ease}
 [data-rv].in{opacity:1;transform:none}
 
-/* ── 내비(한 줄: 가운데 워드마크, 오른쪽 링크 하나) ─────── */
-.top{display:flex;align-items:center;padding:22px var(--margin)}
-.mark{font-size:var(--step-lead);font-weight:700;letter-spacing:-0.02em;position:absolute;
-  left:50%;transform:translateX(-50%);white-space:nowrap}
-.mark i{font-style:normal;opacity:.65}
-.top .dl{margin-left:auto;font-size:var(--step-small);font-weight:500;text-decoration:none;
-  padding:6px 2px;border-bottom:2px solid var(--ink)}
+/* ── 상단 ─────────────────────────────────────────────── */
+.top{display:flex;align-items:center;justify-content:space-between;max-width:1280px;
+  margin:0 auto;padding:26px var(--margin)}
+.mark{font-size:22px;font-weight:700;letter-spacing:-0.02em;text-decoration:none}
+.mark i{font-style:normal;color:var(--blue)}
+.top a.dl{font-size:15px;font-weight:700;color:var(--blue);text-decoration:none}
 
-/* ── 히어로: 거대한 「 하나, 그 앞에서 동작하는 색인 ─────── */
-.hero{position:relative;padding:12svh var(--margin) 12svh;overflow:hidden}
-.bigcorner{position:absolute;inset:0;z-index:0;pointer-events:none}
-.bigcorner::before,.bigcorner::after{content:"";position:absolute;background:var(--accent)}
-.bigcorner::before{top:10vw;right:0;width:46vw;height:5.5vw}
-.bigcorner::after{top:10vw;right:0;width:5.5vw;height:78svh}
-.hero .inner{position:relative;z-index:1;max-width:1360px;margin:0 auto;
-  display:grid;grid-template-columns:1.05fr 1fr;column-gap:clamp(28px,4vw,72px)}
-.hero h1{font-size:var(--step-display);letter-spacing:-0.035em;
-  line-height:0.92;margin-top:2svh}
-.hero .support{margin-top:34px;font-size:clamp(1.125rem,1.15vw,1.25rem);
-  color:var(--ink);max-width:44ch}
-.ctatop{display:flex;align-items:center;gap:16px;margin-top:34px;flex-wrap:wrap}
-.ctatop .note{font-size:var(--step-small);color:var(--muted)}
-.index{margin-top:44px;display:flex;flex-direction:column}
-.row{display:flex;align-items:baseline;gap:14px;padding:15px 4px;cursor:pointer;
-  background:none;border:0;text-align:left;font-family:var(--font);color:var(--ink);
-  font-size:var(--step-lead);font-weight:500;letter-spacing:-0.01em;
-  transition:opacity .2s ease;width:100%}
-.row .hint{font-size:var(--step-small);color:var(--muted);font-weight:400;margin-left:auto;white-space:nowrap}
-.row .b{color:var(--muted);font-weight:400}
-.index:hover .row{opacity:.6}
-.index .row:hover,.index .row[aria-pressed=true]{opacity:1}
-.index .row[aria-pressed=true] .b{color:var(--ink)}
-.hintlive{margin-top:12px;font-size:var(--step-small);color:var(--muted)}
-.stage{align-self:start;position:sticky;top:8svh;background:var(--surface);
-  clip-path:var(--notch);padding:clamp(22px,3vw,46px);display:flex;flex-direction:column;
-  align-items:center;gap:20px;min-height:44svh}
-.stagecap{font-size:var(--step-small);color:var(--muted);text-align:center}
+/* ── 히어로 ───────────────────────────────────────────── */
+.hero{max-width:1280px;margin:0 auto;padding:clamp(36px,6vw,88px) var(--margin) clamp(64px,8vw,120px);
+  display:grid;grid-template-columns:1.08fr 0.92fr;column-gap:clamp(32px,5vw,80px);align-items:center}
+.hero h1{font-size:var(--step-display);letter-spacing:-0.04em;max-width:11ch}
+.hero .support{margin-top:26px;font-size:clamp(1.125rem,1.15vw,1.25rem);color:var(--muted);max-width:42ch}
+.ctarow{display:flex;align-items:center;gap:16px;margin-top:36px;flex-wrap:wrap}
+.ctanote{font-size:var(--step-small);color:var(--muted);max-width:30ch}
+.demo{margin-top:44px}
+.demo .lbl{font-size:var(--step-small);color:var(--muted)}
+.chips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.chip{font-family:var(--font);font-size:15px;font-weight:500;background:var(--blue-wash);color:var(--blue);
+  border:0;padding:11px 16px;border-radius:11px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--blue);color:#fff}
+.hintlive{margin-top:14px;font-size:var(--step-small);color:var(--muted)}
 
 /* ── 제품 카드 목업(실제 오버레이 UI) ───────────────────── */
-.pcard{width:100%;max-width:400px;min-height:240px;border-radius:16px;border:1px solid var(--u-bd); /* taste-skill-ignore: 실제 제품 오버레이 목업 */
-  background:var(--u-bg);color:var(--u-fg);font-family:var(--font);
-  overflow:hidden;display:flex;flex-direction:column;
-  box-shadow:0 14px 44px rgba(0,0,0,.35);transition:opacity .18s ease} /* taste-skill-ignore: 실제 제품 오버레이 목업 */
+.pcard{width:100%;max-width:420px;min-height:250px;border-radius:16px;border:1px solid var(--u-bd); /* taste-skill-ignore: 실제 제품 오버레이 목업 */
+  background:var(--u-bg);color:var(--u-fg);font-family:var(--font);overflow:hidden;
+  display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(15,23,42,.16); /* taste-skill-ignore: 실제 제품 오버레이 목업 */
+  transition:opacity .18s ease}
 .pcard.fade{opacity:0}
 .pc-top{display:flex;align-items:center;gap:8px;padding:13px 14px 8px}
 .pc-title{font-size:14.5px;font-weight:700;line-height:1.3}
-.pc-badge{flex:0 0 auto;font-size:11.5px;padding:3px 10px;border-radius:11px;
-  background:#e3f5e9;color:#166534}
+.pc-badge{flex:0 0 auto;font-size:11.5px;padding:3px 10px;border-radius:11px;background:#e3f5e9;color:#166534}
 .pc-x{margin-left:auto;color:var(--u-fg2);display:inline-grid}
-.pc-body{padding:0 14px 8px;overflow-y:auto;max-height:250px}
+.pc-body{padding:0 14px 10px;overflow-y:auto;max-height:250px;flex:1}
 .pc-body p{font-size:13.5px;line-height:1.62;margin:4px 0}
 .pc-body p.chap{color:var(--u-fg2)}
 .pc-body p.hist{color:var(--u-fg2);font-size:11.5px;line-height:1.5;margin:0 0 4px}
 .pc-foot{display:flex;align-items:center;gap:12px;padding:10px 14px;
-  border-top:1px solid var(--u-bd);font-size:12.5px} /* taste-skill-ignore: 실제 제품 카드의 구분선 */
+  border-top:1px solid var(--u-bd);font-size:12.5px} /* taste-skill-ignore: 실제 제품 카드 하단바 */
 .pc-size{color:var(--u-fg2);letter-spacing:2px}
 .pc-foot a{color:var(--u-link);text-decoration:none;font-size:12.5px}
 .pc-state{margin-left:auto;color:var(--u-fg2);font-size:12.5px}
@@ -114,28 +94,20 @@ small{font-size:var(--step-small)}
 .pc-copy{border:0;border-radius:11px;background:var(--u-copy);color:var(--u-fg);
   font-size:12px;padding:6px 13px;cursor:pointer;font-family:var(--font)}
 
-/* ── 순서: 한 개의 막대 다이어그램 ─────────────────────── */
-.how{padding:clamp(88px,11vw,160px) var(--margin);max-width:1440px;margin:0 auto}
-.how h2{font-size:var(--step-head);margin-bottom:clamp(40px,6vw,72px)}
-.bar{display:flex;gap:6px}
-.seg{flex:1;min-height:212px;padding:20px;display:flex;flex-direction:column;gap:10px}
-.seg b{font-size:var(--step-lead);font-weight:500;letter-spacing:-0.01em}
-.seg.s1{background:var(--surface2);color:var(--ink)}
-.seg.s2{background:var(--surface);color:var(--ink)}
-.seg.s3{background:var(--muted);color:var(--accent-ink)}
-.seg.s4{background:var(--accent);color:var(--accent-ink)}
-.segclauses{display:flex;gap:6px;margin-top:18px}
-.segclauses p{flex:1;font-size:var(--step-body);color:var(--muted);max-width:24ch;min-width:0;
-  padding:0 2px}
-.howsub{margin-top:clamp(88px,9vw,140px);display:flex;align-items:flex-end;gap:clamp(24px,4vw,64px);
-  flex-wrap:wrap}
-.howsub h3{font-size:var(--step-head);line-height:1.02;max-width:14ch}
-.howsub h3 .muted{color:var(--muted)}
-.mocks{display:flex;gap:14px;flex-wrap:wrap}
-/* 제품 목업: 조회 창(실제 UI) */
-.pwin{width:460px;max-width:100%;background:var(--u-bg);color:var(--u-fg);border-radius:14px;
+/* ── 편리성 ───────────────────────────────────────────── */
+.why{background:var(--surface);padding:clamp(72px,9vw,130px) var(--margin)}
+.why .wrap{max-width:1280px;margin:0 auto}
+.why h2{font-size:var(--step-head);max-width:16ch}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);column-gap:clamp(24px,3.4vw,56px);
+  margin-top:clamp(36px,4.6vw,64px)}
+.trio .p h3{font-size:var(--step-lead);letter-spacing:-0.02em}
+.trio .p p{margin-top:12px;color:var(--muted);font-size:var(--step-body);max-width:32ch}
+.trio .p .k{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:12px;
+  background:var(--blue);color:#fff;font-size:19px;margin-bottom:18px}
+.mocks{display:flex;gap:16px;margin-top:clamp(48px,6vw,84px);flex-wrap:wrap}
+.pwin{width:440px;max-width:100%;background:var(--u-bg);color:var(--u-fg);border-radius:14px;
   border:1px solid var(--u-bd);overflow:hidden;display:flex;flex-direction:column; /* taste-skill-ignore: 실제 제품 오버레이 목업 */
-  box-shadow:0 14px 44px rgba(0,0,0,.35)} /* taste-skill-ignore: 실제 제품 오버레이 목업 */
+  box-shadow:0 18px 50px rgba(15,23,42,.16)} /* taste-skill-ignore: 실제 제품 오버레이 목업 */
 .pw-top{display:flex;align-items:center;gap:8px;padding:12px 14px;font-size:13px;color:var(--u-fg2)}
 .pw-q{display:flex;align-items:center;gap:10px;margin:0 14px;padding:10px 12px;border-radius:10px;
   background:var(--u-hover);font-size:15px}
@@ -147,214 +119,154 @@ small{font-size:var(--step-small)}
 .pw-item .t2{color:var(--u-fg2)}
 .pw-foot{border-top:1px solid var(--u-bd);padding:8px 14px;font-size:12px;color:var(--u-fg2); /* taste-skill-ignore: 실제 제품 UI */
   display:flex;gap:8px}
-/* 제품 목업: 트레이 메뉴(실제 UI) */
 .ptray{width:320px;background:var(--u-bg);color:var(--u-fg);border-radius:14px;
   border:1px solid var(--u-bd);overflow:hidden;display:flex;flex-direction:column; /* taste-skill-ignore: 실제 제품 오버레이 목업 */
-  box-shadow:0 14px 44px rgba(0,0,0,.35)} /* taste-skill-ignore: 실제 제품 오버레이 목업 */
+  box-shadow:0 18px 50px rgba(15,23,42,.16)} /* taste-skill-ignore: 실제 제품 오버레이 목업 */
 .pm-list{padding:6px;display:flex;flex-direction:column;flex:1}
 .pm-item{padding:9px 12px;font-size:14px;border-radius:7px}
 .pm-item.sel{background:var(--u-hover);font-weight:600}
 .pm-item.dis{color:var(--u-fg2)}
-.pm-sep{height:1px;background:var(--u-bd);margin:5px 6px} /* taste-skill-ignore: 실제 트레이 메뉴의 구분선 */
+.pm-sep{height:1px;background:var(--u-bd);margin:5px 6px} /* taste-skill-ignore: 실제 트레이 메뉴 구분선 */
 .pm-task{border-top:1px solid var(--u-bd);background:#f4f6f8;display:flex;align-items:center; /* taste-skill-ignore: 실제 제품 UI */
   gap:6px;padding:7px 10px;font-size:12px;color:var(--u-fg2);margin-top:auto}
-.pm-ico{width:22px;height:22px;border-radius:6px;background:var(--bg);color:var(--accent);
+.pm-ico{width:22px;height:22px;border-radius:6px;background:var(--blue);color:#fff;
   display:grid;place-items:center;font-size:13px;font-weight:700}
 
-/* ── 규모: 합계와 영수증(surface 단색 마당) ─────────────── */
-.scale{background:var(--surface);padding:clamp(88px,11vw,150px) var(--margin)}
-.scale .wrap{max-width:1440px;margin:0 auto;display:grid;
-  grid-template-columns:1.2fr 1fr;column-gap:clamp(32px,5vw,88px);
-  align-items:end;min-height:72svh}
-.scale h2{font-size:var(--step-head)}
-.scale h2 .soft{color:var(--muted)}
-.scale .note{margin-top:22px;font-size:var(--step-body);color:var(--ink);max-width:46ch}
-.total{margin-top:clamp(48px,9vw,110px);line-height:0.8;letter-spacing:-0.04em;
-  font-weight:700;font-size:clamp(80px,13vw,190px);font-variant-numeric:tabular-nums;
-  white-space:nowrap}
-.total small{font-size:0.16em;letter-spacing:0;font-weight:500;margin-left:.1em}
-.totalcap{margin-top:26px;font-size:var(--step-small);color:var(--muted)}
-.receipt{background:var(--bg);clip-path:var(--notch);padding:clamp(26px,2.6vw,40px);
-  align-self:end;margin-bottom:8px}
-.receipt h3{font-size:var(--step-small);letter-spacing:0.08em;font-weight:500;color:var(--muted);
-  margin-bottom:22px}
-.receipt ul{list-style:none;display:flex;flex-direction:column;gap:17px}
-.receipt li{display:flex;gap:11px;font-size:var(--step-body);line-height:1.4}
-.receipt li i{font-style:normal;color:var(--accent);flex:0 0 auto}
-.receipt .fine{margin-top:24px;font-size:var(--step-small);color:var(--muted);line-height:1.55}
+/* ── 규모(파란 단색 마당) ─────────────────────────────── */
+.scale{background:var(--blue);color:#fff;padding:clamp(64px,8vw,110px) var(--margin)}
+.scale .wrap{max-width:1280px;margin:0 auto;display:flex;gap:clamp(28px,4vw,72px);
+  align-items:baseline;flex-wrap:wrap}
+.scale h2{position:absolute;left:-9999px}
+.fig{display:flex;flex-direction:column;gap:10px}
+.fig b{font-size:clamp(2.5rem,5vw,4.25rem);letter-spacing:-0.04em;line-height:0.95;
+  font-variant-numeric:tabular-nums;font-weight:700}
+.fig b small{font-size:.32em;font-weight:600;letter-spacing:-0.02em;margin-left:.12em}
+.fig span{font-size:var(--step-body);opacity:.92}
 
-/* ── 그 위에: 이름 타일 보드 ───────────────────────────── */
-.built{padding:clamp(88px,11vw,150px) var(--margin);max-width:1440px;margin:0 auto}
-.board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.cell{background:var(--surface);padding:24px;min-height:clamp(130px,13vw,170px);
-  display:flex;flex-direction:column}
-.cell h2,.cell .big{font-size:clamp(1.5rem,2.6vw,2.1rem);line-height:1.05}
-.cell.accent{grid-column:span 2;background:var(--accent);color:var(--accent-ink);
-  clip-path:var(--notch)}
-.cell b{font-size:clamp(1.2rem,1.75vw,1.55rem);font-weight:700;letter-spacing:-0.01em}
-.cell span{margin-top:auto;font-size:var(--step-small);color:var(--muted)}
-.cell.accent span{color:var(--accent-ink);opacity:.75}
-
-/* ── 사진 띠: 모티프 각도로 자른 전체폭 분할대 ─────────── */
-.band{position:relative;height:46svh;overflow:hidden;margin-top:8px;
-  clip-path:polygon(5vw 0,100% 0,100% calc(100% - 5vw),0 100%,0 5vw,5vw 5vw)}
-.band img{width:100%;height:100%;object-fit:cover;transform:scale(1.08);
-  animation:drift 26s ease-in-out infinite alternate;transform-origin:60% 45%}
-@keyframes drift{from{transform:scale(1.08)}to{transform:scale(1.16) translateY(-2%)}}
-.band .credit{position:absolute;left:24px;bottom:20px;background:var(--accent);
-  color:var(--accent-ink);font-size:13px;padding:7px 12px;text-decoration:none;
-  clip-path:var(--notch)}
-
-/* ── 물음: 채운 타일 아코디언 ──────────────────────────── */
-.faq{padding:clamp(88px,11vw,150px) var(--margin);max-width:1440px;margin:0 auto;
-  display:grid;grid-template-columns:repeat(12,1fr);column-gap:24px}
-.faq h2{grid-column:1/5;position:sticky;top:88px;align-self:start;
-  font-size:clamp(2.1rem,4vw,3.4rem)}
-.faq .acc{grid-column:5/13;display:flex;flex-direction:column;gap:8px}
-details{background:var(--surface)}
-summary{list-style:none;display:flex;align-items:center;gap:18px;cursor:pointer;
-  min-height:72px;padding:18px 24px;font-size:var(--step-lead);font-weight:500;letter-spacing:-0.01em}
-summary::-webkit-details-marker{display:none}
-summary .pm{flex:0 0 16px;width:16px;height:16px;position:relative}
-summary .pm::before,summary .pm::after{content:"";position:absolute;background:var(--ink);
-  width:16px;height:3px;top:6.5px;left:0;transition:transform .18s ease}
-summary .pm::after{transform:rotate(90deg)}
-details[open]{background:var(--accent);color:var(--accent-ink);clip-path:var(--notch)}
-details[open] summary{color:var(--accent-ink)}
-details[open] summary .pm::before,details[open] summary .pm::after{background:var(--accent-ink)}
-details[open] summary .pm::after{transform:rotate(0deg)}
-.answer{padding:0 24px 26px;font-size:var(--step-body);color:var(--ink);max-width:52ch}
-details[open] .answer{color:#3c5c22}
-.answer a{color:inherit;text-decoration:underline}
-
-/* ── 내려받기: 헤드라인 아래 파일 칸 하나 ════════════════ */
-.download{padding:clamp(96px,12vw,170px) var(--margin);max-width:1440px;margin:0 auto}
-.sent{font-size:var(--step-head);font-weight:700;letter-spacing:-0.02em;line-height:1.02}
-.dlrow{margin-top:clamp(28px,3.4vw,52px);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.dlrow .slot{display:inline-block;background:var(--surface);clip-path:var(--notch);
-  padding:.22em .4em;font-size:var(--step-lead);font-weight:500;letter-spacing:0;
-  font-variant-numeric:tabular-nums;white-space:nowrap}
-.dlrow .btn{font-size:var(--step-lead)}
-.dlmeta{margin-top:clamp(28px,3vw,44px);display:flex;flex-direction:column;gap:16px}
-.segs{display:flex;gap:8px}
-.chip{font-family:var(--font);font-size:var(--step-small);font-weight:500;background:var(--surface);
-  color:var(--ink);border:0;padding:10px 18px;cursor:pointer;clip-path:var(--notch)}
-.chip[aria-pressed=true]{background:var(--ink);color:var(--accent-ink)}
-.dlnote{font-size:var(--step-body);color:var(--muted);max-width:64ch}
-.hashline{font-size:var(--step-small);color:var(--muted);cursor:pointer;max-width:80ch}
+/* ── 다운로드 ─────────────────────────────────────────── */
+.download{padding:clamp(72px,9vw,130px) var(--margin)}
+.download .wrap{max-width:1280px;margin:0 auto}
+.download h2{font-size:var(--step-head)}
+.cards{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;margin-top:clamp(36px,4.4vw,56px)}
+.pkg{padding:clamp(24px,2.6vw,36px);border-radius:18px;display:flex;flex-direction:column;gap:14px;
+  background:var(--surface)}
+.pkg.main{background:var(--blue);color:#fff}
+.pkg .tag{align-self:flex-start;font-size:var(--step-small);font-weight:700;padding:5px 12px;
+  border-radius:99px;background:#fff;color:var(--blue)}
+.pkg.main .tag{background:#fff}
+.pkg.plain .tag{background:var(--blue-wash);color:var(--blue)}
+.pkg h3{font-size:var(--step-lead)}
+.pkg .meta{font-size:var(--step-small);opacity:.85}
+.pkg .fn{font-size:15px;font-weight:500;font-variant-numeric:tabular-nums;word-break:break-all}
+.pkg .btn{align-self:flex-start;background:#fff;color:var(--blue)}
+.pkg .btn:hover{background:#e8efff}
+.pkg.plain .btn{background:var(--blue);color:#fff}
+.pkg.plain .btn:hover{background:var(--blue-deep)}
+.steps{margin-top:clamp(44px,5vw,64px);display:flex;gap:clamp(20px,3vw,48px);flex-wrap:wrap;
+  font-size:var(--step-body);color:var(--muted)}
+.steps b{color:var(--ink);font-weight:700}
+.hashline{margin-top:26px;font-size:var(--step-small);color:var(--muted);cursor:pointer;max-width:90ch}
 .hashline b{color:var(--ink);font-weight:500;word-break:break-all}
 
-/* ── 푸터: 블록으로 세운 워드마크 ──────────────────────── */
-footer{padding:clamp(56px,6vw,90px) var(--margin) 34px}
-.blocks{display:flex;align-items:flex-end;gap:4px}
-.blocks .k{background:var(--accent);color:var(--accent-ink);flex:1;display:grid;
-  place-items:center;font-weight:700;letter-spacing:-0.03em;
-  font-size:clamp(56px,10.5vw,168px)}
-.blocks .k:nth-child(1){height:clamp(120px,26svh,300px)}
-.blocks .k:nth-child(2){height:clamp(96px,19svh,220px)}
-.blocks .k:nth-child(3){height:clamp(110px,22svh,256px)}
-.blocks .k.br{flex:0.35}
-.fcols{display:grid;grid-template-columns:repeat(12,1fr);column-gap:24px;
-  margin-top:56px}
-.fcol{display:flex;flex-direction:column;gap:10px;font-size:var(--step-small)}
-.fcol h3{font-size:var(--step-small);color:var(--muted);font-weight:500;
-  letter-spacing:0.08em;margin-bottom:6px}
-.fcol a{text-decoration:none}
-.fcol a:hover{text-decoration:underline}
-.fcol.c1{grid-column:1/4}.fcol.c2{grid-column:4/7}.fcol.c3{grid-column:7/10}
-.fcol.c4{grid-column:10/13}
-.frow{display:flex;align-items:center;gap:20px;margin-top:52px;flex-wrap:wrap}
-.frow .legal{font-size:var(--step-small);color:var(--muted);max-width:88ch;line-height:1.6}
-.frow .btn{margin-left:auto;padding:10px 18px;font-size:14px}
+/* ── 문의 ─────────────────────────────────────────────── */
+.contact{background:var(--surface);padding:clamp(72px,9vw,120px) var(--margin)}
+.contact .wrap{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:1.1fr 1fr;
+  column-gap:clamp(32px,5vw,88px);row-gap:36px;align-items:start}
+.contact h2{font-size:var(--step-head)}
+.contact .support{margin-top:18px;color:var(--muted);max-width:40ch}
+.mailrow{display:flex;gap:14px;flex-wrap:wrap;margin-top:26px}
+.clist{display:flex;flex-direction:column;gap:16px;padding-top:8px}
+.cline{display:flex;flex-direction:column;gap:3px}
+.cline small{font-size:var(--step-small);color:var(--muted)}
+.cline a{font-size:var(--step-lead);font-weight:700;letter-spacing:-0.02em;text-decoration:none;
+  text-underline-offset:4px}
+.cline a:hover{text-decoration:underline;text-decoration-color:var(--blue)}
 
-/* ── 모바일 ───────────────────────────────────────────── */
+/* ── 사진·푸터 ────────────────────────────────────────── */
+.band{position:relative;height:42svh;overflow:hidden}
+.band img{width:100%;height:100%;object-fit:cover}
+.band .credit{position:absolute;left:var(--margin);bottom:18px;background:rgba(255,255,255,.92);
+  color:var(--ink);font-size:13px;padding:7px 12px;border-radius:9px;text-decoration:none}
+footer{background:var(--ink);color:#cdd6e1;padding:clamp(44px,5vw,72px) var(--margin) 34px}
+footer .wrap{max-width:1280px;margin:0 auto;display:flex;justify-content:space-between;
+  gap:28px;flex-wrap:wrap;align-items:flex-start}
+footer .fmark{color:#fff;font-size:20px;font-weight:700;text-decoration:none}
+footer .fmark i{font-style:normal;color:#7ea4ff}
+footer nav{display:flex;gap:22px;font-size:15px;flex-wrap:wrap}
+footer nav a{text-decoration:none}
+footer nav a:hover{text-decoration:underline}
+footer .legal{width:100%;margin-top:28px;font-size:var(--step-small);line-height:1.65;opacity:.8}
+footer .legal a{color:inherit}
+
+/* ── 반응형 ───────────────────────────────────────────── */
 @media (max-width:900px){
-  .hero{padding-block:8svh}
-  .hero .inner{grid-template-columns:1fr;row-gap:40px}
-  .hero h1{font-size:clamp(56px,15vw,120px)}
-  .bigcorner{display:none}
-  .stage{position:static;min-height:0}
-  .row{padding:14px 2px}
-  .bar{flex-direction:column}
-  .seg{min-height:86px;padding:16px}
-  .segclauses{flex-direction:column;gap:12px;margin-top:16px}
-  .scale .wrap{grid-template-columns:1fr;min-height:0;row-gap:44px}
-  .board{grid-template-columns:1fr 1fr}
-  .cell.accent{grid-column:1/3}
-  .band{height:36svh;clip-path:polygon(14vw 0,100% 0,100% calc(100% - 14vw),0 100%,0 14vw,14vw 14vw)}
-  .faq{display:block}
-  .faq h2{position:static;margin-bottom:22px}
-  summary{font-size:var(--step-lead);padding:16px 20px}
-  .answer{padding:0 20px 22px}
-  .howsub h3{max-width:none}
+  .hero{grid-template-columns:1fr;row-gap:44px;padding-top:28px}
+  .hero h1{font-size:clamp(44px,12vw,72px)}
+  .trio{grid-template-columns:1fr;row-gap:34px}
+  .cards{grid-template-columns:1fr}
+  .contact .wrap{grid-template-columns:1fr}
   .pwin,.ptray{width:100%}
-  .fcols{grid-template-columns:1fr 1fr;row-gap:34px}
-  .fcol.c1,.fcol.c2,.fcol.c3,.fcol.c4{grid-column:auto}
-  .frow .btn{margin-left:0}
 }
 @media (prefers-reduced-motion:reduce){
   [data-rv]{opacity:1;transform:none;transition:none}
   html{scroll-behavior:auto}
-  .band img{animation:none}
   .pcard{transition:none}
+  .pw-q .caret{animation:none}
 }
 </style>
 </head>
 <body>
 
-<header class="top" id="top">
-  <span></span>
-  <span class="mark"><i>「</i>즉시로<i>」</i></span>
-  <a class="dl" href="#download">내려받기</a>
+<header class="top">
+  <a class="mark" href="#top"><i>「</i>즉시로<i>」</i></a>
+  <a class="dl" href="#download">다운로드 ↓</a>
 </header>
 
-<!-- ══ 히어로: 거대한 「, 앞에서 인용 색인이 프리뷰를 바꾼다 ══ -->
-<section class="hero" aria-label="즉시로 데모">
-  <div class="bigcorner" aria-hidden="true"></div>
-  <div class="inner">
-    <div>
-      <h1 data-rv>복사하면,<br>조문.</h1>
-      <p class="support" data-rv>「민법」 제750조 같은 인용을 복사하는 순간, 화면 우측 하단에
-        전문이 뜨는 오프라인 Windows 앱입니다. 무료·오픈소스, 설치부터 실행까지 인터넷이 필요 없습니다.</p>
-      <p class="ctatop" data-rv>
-        <a class="btn" id="dlTop" href="ImmediatelyLaw-offline-1.3.9.zip" download>내려받기</a>
-        <span class="note">오프라인 패키지 · 최신 데이터 동봉 · Windows 10·11</span></p>
-      <div class="index" id="index" role="group" aria-label="인용 예시">
-        <button class="row" type="button" data-k="minp0750" aria-pressed="true">
-          <span><span class="b">「</span>민법<span class="b">」</span> 제750조</span><span class="hint">손해배상의 책임</span></button>
-        <button class="row" type="button" data-k="hyung004" aria-pressed="false">
-          <span><span class="b">「</span>형법<span class="b">」</span> 제4조</span><span class="hint">외국인의 죄</span></button>
-        <button class="row" type="button" data-k="jaenan003" aria-pressed="false">
-          <span><span class="b">「</span>재난 및 안전관리 기본법<span class="b">」</span> 제3조</span><span class="hint">정의 · 호와 목</span></button>
-        <button class="row" type="button" data-k="gaedemo" aria-pressed="false">
-          <span><span class="b">「</span>민법<span class="b">」</span> 제10조</span><span class="hint">개정 이력 구분</span></button>
-        <p class="hintlive" data-rv>문장을 누르면 실제로 클립보드에 복사됩니다.</p>
+<!-- ══ 히어로: 실물 카드 + 실제로 복사되는 인용 버튼 ══ -->
+<section class="hero" id="top" aria-label="즉시로 소개">
+  <div>
+    <h1 data-rv>복사하면<br>조문입니다.</h1>
+    <p class="support" data-rv>「민법」 제750조 같은 법령 인용을 복사하는 순간, 화면 우측 하단에
+      조문 전문이 뜨는 Windows 앱입니다. 인터넷 없이도 동작하는 무료·오픈소스.</p>
+    <p class="ctarow" data-rv>
+      <a class="btn" id="dlTop" href="ImmediatelyLaw-offline-1.3.9.zip" download>지금 내려받기</a>
+      <span class="ctanote">최신 데이터 동봉 · 파일 하나로 시작</span></p>
+    <div class="demo" data-rv>
+      <p class="lbl">인용을 눌러 직접 확인하세요 — 실제로 클립보드에 복사되고, 오른쪽 카드가 바뀝니다.</p>
+      <div class="chips" role="group" aria-label="인용 예시">
+        <button class="chip" type="button" data-k="minp0750" aria-pressed="true">「민법」 제750조</button>
+        <button class="chip" type="button" data-k="hyung004" aria-pressed="false">「형법」 제4조</button>
+        <button class="chip" type="button" data-k="jaenan003" aria-pressed="false">「재난 및 안전관리 기본법」 제3조</button>
       </div>
     </div>
-    <div class="stage" id="stage">
-      <div class="pcard" id="previewCard" data-ui role="img" aria-label="즉시로 카드 미리보기"></div>
-      <p class="stagecap">화면 우측 하단에 걸리는 실제 카드입니다 · 밝은/어두운 테마 지원</p>
-    </div>
   </div>
+  <div class="pcard" id="previewCard" data-ui role="img" aria-label="즉시로 카드 미리보기"></div>
 </section>
 
-<!-- ══ 순서: 제품 진행을 확대한 한 개의 막대 ══ -->
-<section class="how" id="how">
-  <h2 data-rv>순서는 이렇습니다.</h2>
-  <div class="bar" data-ui data-rv role="img" aria-label="네 단계 진행 막대">
-    <div class="seg s1"><b>직접 하시는 일</b></div>
-    <div class="seg s2"><b>즉시</b></div>
-    <div class="seg s3"><b>즉시</b></div>
-    <div class="seg s4"><b>즉시</b></div>
-  </div>
-  <div class="segclauses" data-rv>
-    <p>먼저, 인용을 복사합니다.</p>
-    <p>이어서, 인용을 읽습니다.</p>
-    <p>오직, 이 컴퓨터에서 찾습니다.</p>
-    <p>그대로, 카드가 뜹니다.</p>
-  </div>
-  <div class="howsub">
-    <h3 data-rv>또는, <span class="muted">직접 찾습니다.</span></h3>
+<!-- ══ 편리성 ══ -->
+<section class="why" id="why">
+  <div class="wrap">
+    <h2 data-rv>창을 열지 않습니다.</h2>
+    <div class="trio">
+      <div class="p" data-rv>
+        <span class="k" aria-hidden="true">「</span>
+        <h3>복사가 곧 검색</h3>
+        <p>브라우저도 검색도 필요 없습니다. 「법령명」 제N조 형식을 복사하는 것만으로
+          조문 전문이 화면 구석에 뜨고, 필요하면 <b>Ctrl+Alt+L</b> 어떤 창에서든 바로 검색합니다.</p>
+      </div>
+      <div class="p" data-rv>
+        <span class="k" aria-hidden="true">⌁</span>
+        <h3>망분리에서도 동작</h3>
+        <p>법령 전문은 이 컴퓨터의 오프라인 데이터베이스(약 400MB)에 들어 있습니다.
+          복사 내용은 저장하지 않고 외부로 보내지 않습니다.</p>
+      </div>
+      <div class="p" data-rv>
+        <span class="k" aria-hidden="true">↻</span>
+        <h3>매일 새벽에 저절로</h3>
+        <p>하루 중 개정된 분량만 델타로 받아 새벽 3시에 갱신합니다. 모든 파일은 SHA-256으로
+          검증하고, 갱신 기록에 틈이 생기면 자동으로 전체본을 받아 복구합니다.</p>
+      </div>
+    </div>
     <div class="mocks">
       <div class="pwin" data-ui role="img" aria-label="즉시로 조회 창 목업: 민법 750 검색 결과" data-rv>
         <div class="pw-top"><span>즉시로 · 법령 검색</span></div>
@@ -362,7 +274,6 @@ footer{padding:clamp(56px,6vw,90px) var(--margin) 34px}
         <div class="pw-res">
           <div class="pw-item sel"><span><b>「민법」 제750조</b>(불법행위에 대한 배상책임)</span></div>
           <div class="pw-item"><span class="t2">「민법」 제750조의2 (피용자등의 배상책임)</span></div>
-          <div class="pw-item"><span class="t2">「민법」 제750조 (2023. 5. 17. 법률 제19234호 일부개정) 관련 판례 검색 ↗</span></div>
         </div>
         <div class="pw-foot"><span>Enter 조문 열기</span><span style="margin-left:auto">Ctrl+Alt+L</span></div>
       </div>
@@ -381,141 +292,87 @@ footer{padding:clamp(56px,6vw,90px) var(--margin) 34px}
   </div>
 </section>
 
-<!-- ══ 규모: 합계와 그 내역 ══ -->
-<section class="scale" id="scale">
+<!-- ══ 규모 ══ -->
+<section class="scale" aria-label="데이터 규모">
+  <div class="wrap">
+    <h2>한 나라의 법령 전부가 이 안에 있습니다.</h2>
+    <div class="fig" data-rv><b>5,631<small>건</small></b><span>현행 법령 전수</span></div>
+    <div class="fig" data-rv><b>207,810<small>조</small></b><span>조문 전문 · 항·호·목까지 복원</span></div>
+    <div class="fig" data-rv><b id="dver">2026.10.30</b><span>데이터판 · 매일 03:00(한국시간) 갱신</span></div>
+  </div>
+</section>
+
+<!-- ══ 다운로드 ══ -->
+<section class="download" id="download">
+  <div class="wrap">
+    <h2 data-rv>파일 하나로, 오늘부터.</h2>
+    <div class="cards" data-rv>
+      <div class="pkg main">
+        <span class="tag">권장 · 데이터 동봉</span>
+        <h3>오프라인 패키지</h3>
+        <p class="fn" id="fName">ImmediatelyLaw-offline-1.3.9.zip</p>
+        <p class="meta">버전 <span id="fVer">v1.3.9</span> · 크기 <span id="fSize">85.3MB</span> · 최신 법령 데이터 포함, 설치와 실행에 인터넷 불필요</p>
+        <a class="btn" id="dlBtn" href="ImmediatelyLaw-offline-1.3.9.zip" download>내려받기</a>
+      </div>
+      <div class="pkg plain">
+        <span class="tag">용량 최소</span>
+        <h3>온라인 패키지</h3>
+        <p class="fn" id="fNameW">ImmediatelyLaw-online-1.3.9.zip</p>
+        <p class="meta">버전 <span id="fVerW">v1.3.9</span> · 크기 <span id="fSizeW">56.9MB</span> · 첫 실행 후 데이터를 받아옵니다</p>
+        <a class="btn" id="dlBtnW" href="ImmediatelyLaw-online-1.3.9.zip" download>내려받기</a>
+      </div>
+    </div>
+    <p class="steps" data-rv>
+      <span><b>1.</b> 압축 풀기</span>
+      <span><b>2.</b> ImmediatelyLaw.exe 실행</span>
+      <span><b>3.</b> 인용을 복사하기</span>
+      <span class="muted">Windows 10·11 64비트 · 관리자 권한 없음 · SmartScreen이 뜨면 아래 해시 확인 후 실행</span></p>
+    <p class="hashline" id="fHash" title="클릭하면 전체 해시가 복사됩니다">SHA-256 <b>5695052d1e28365b…f9f524</b> · 이 서버 배포 정보(app-latest.json)의 실시간 값입니다. 클릭하면 복사됩니다.</p>
+  </div>
+</section>
+
+<!-- ══ 문의 ══ -->
+<section class="contact" id="contact">
   <div class="wrap">
     <div>
-      <h2 data-rv><span class="soft">한 나라의 법령이,</span><br>이 안에 있습니다.</h2>
-      <p class="note" data-rv>국가법령정보센터(법제처) OPEN API의 현행 법령을 항·호·목까지
-        원문 그대로 복원해 오프라인 데이터로 배포합니다. 갱신은 매일 새벽 3시, 대한민국 표준시.</p>
-      <div class="total" data-rv>207,810<small>조</small></div>
-      <p class="totalcap" data-rv>현행 전수 조문 수 · 데이터판 <span id="dver">2026.10.30</span></p>
+      <h2 data-rv>만나는 곳.</h2>
+      <p class="support" data-rv>설치·데이터·개선 제안 무엇이든 좋습니다.
+        공공에서 만든 무료 오픈소스이므로 소스를 직접 보시거나 issue로 알려주셔도 됩니다.</p>
+      <p class="mailrow" data-rv>
+        <a class="btn" href="mailto:irize@seocho.go.kr">이메일 보내기</a>
+        <a class="btn ghost" href="tel:+82221556089">02-2155-6089</a></p>
     </div>
-    <div class="receipt" data-rv>
-      <h3>합계 내역</h3>
-      <ul>
-        <li><i>「</i>현행 법령 <b>5,631</b>건 전수</li>
-        <li><i>「</i>조문 전문 <b>207,810</b>조, 항·호·목 복원</li>
-        <li><i>「</i>오프라인 데이터베이스 <b>412MB</b></li>
-        <li><i>「</i>매일 03:00 델타 배포 · 전 파일 SHA-256 검증</li>
-        <li><i>「</i>체인이 끊기면 전체 스냅샷으로 자동 복구</li>
-      </ul>
-      <p class="fine">이 서버가 매일 발행하는 manifest.json의 실측값입니다. 숫자는 컴퓨터가 매기는
-        것이 아니라 법령 원장을 그대로 세어 얻은 값입니다.</p>
+    <div class="clist" data-rv>
+      <div class="cline"><small>담당</small>
+        <a href="mailto:irize@seocho.go.kr">irize@seocho.go.kr</a>
+        <span class="muted">서초구청 홍성민 주무관</span></div>
+      <div class="cline"><small>소스 코드 · MIT 라이선스</small>
+        <a href="https://github.com/nazgregory/ImmediatelyLaw" rel="noopener">github.com/nazgregory/ImmediatelyLaw</a></div>
+      <div class="cline"><small>사용 영상</small>
+        <a href="https://youtu.be/rZUceBYTzhg" rel="noopener">youtube.com/watch?v=rZUceBYTzhg</a></div>
     </div>
   </div>
 </section>
 
-<!-- ══ 그 위에: 이름들 ══ -->
-<section class="built" id="built">
-  <div class="board">
-    <div class="cell accent" data-rv><h2>그 위에 쌓았습니다</h2><span>로고 없이, 이름으로만</span></div>
-    <div class="cell" data-rv><b>국가법령정보센터 OPEN&nbsp;API</b><span>데이터 원출처</span></div>
-    <div class="cell" data-rv><b>Python</b><span>언어</span></div>
-    <div class="cell" data-rv><b>PySide6 (Qt)</b><span>오버레이 UI</span></div>
-    <div class="cell" data-rv><b>SQLite</b><span>오프라인 원장</span></div>
-    <div class="cell" data-rv><b>PyInstaller</b><span>단일 실행 파일</span></div>
-    <div class="cell" data-rv><b>MIT 라이선스</b><span>무료 · 소스 공개</span></div>
-    <div class="cell" data-rv><b>수집 없음</b><span>분석 코드 동봉 안 함</span></div>
-  </div>
-</section>
-
-<!-- ══ 사진 띠: 법령이 만들어지는 자리(페이지를 가르는 분할대) ══ -->
-<div class="band" data-rv>
+<!-- ══ 사진 ══ -->
+<div class="band">
   <img src="capitol.jpg" width="1920" height="1080" loading="lazy"
        alt="하늘이 흐린 날, 게양기 앞의 대한민국 국회 의사당">
   <a class="credit" href="https://commons.wikimedia.org/wiki/File:Republic_of_Korea_capitol.jpg">의사당 사진 · Cjb8293, CC BY-SA 4.0 · Wikimedia Commons</a>
 </div>
 
-<!-- ══ 물음 ══ -->
-<section class="faq" id="faq">
-  <h2 data-rv>물음 몇 가지</h2>
-  <div class="acc">
-    <details name="q" data-rv><summary><span class="pm"></span>제 복사 내용이 외부로 나가나요?</summary>
-      <div class="answer">나가지 않습니다. 클립보드는 이 컴퓨터의 메모리에서 인용 패턴을 읽기만
-        하고 저장하지 않으며, 조회는 전부 로컬 데이터로 끝납니다. 설정 › API 키에 본인 명의로 발급받은
-        공공데이터 인증키를 직접 넣어 ‘현행 여부 확인’을 켠 경우에만 그 건에 한해 법제처 API를 호출합니다.</div>
-    </details>
-    <details name="q" data-rv><summary><span class="pm"></span>Windows가 “알 수 없는 게시자”라고 해요</summary>
-      <div class="answer">상용 코드 서명(Authenticode)을 적용하지 않은 실행 파일이라 SmartScreen이
-        경고할 수 있습니다. 아래 내려받기 칸에 공개된 SHA-256 해시와 받은 파일이 같은지 확인한 뒤
-        실행하세요. 소스는 <a href="https://github.com/nazgregory/ImmediatelyLaw" rel="noopener">MIT 라이선스로 공개</a>되어 있어 직접 빌드해 쓰는 것도 가능합니다.</div>
-    </details>
-    <details name="q" data-rv><summary><span class="pm"></span>어떤 PC에서 되나요?</summary>
-      <div class="answer">Windows 10·11 64비트입니다. 관리자 권한이 필요 없고 현재 사용자에만
-        등록됩니다(HKCU). 디스크는 약 300MB, 설정과 데이터는 사용자 폴더(AppData)에 저장됩니다.</div>
-    </details>
-    <details name="q" data-rv><summary><span class="pm"></span>인터넷이 차단된 망에서도 쓰나요?</summary>
-      <div class="answer">오프라인 패키지는 최신 데이터가 동봉되어 설치와 실행이 전부 오프라인으로
-        됩니다. 최신화할 때는 인터넷이 되는 PC에서 데이터 파일만 받아 전달하면 됩니다. 공공기관의
-        망분리 환경을 고려한 배포 방식입니다.</div>
-    </details>
-    <details name="q" data-rv><summary><span class="pm"></span>어떤 법령이 들어가 있나요?</summary>
-      <div class="answer">국가법령정보센터의 현행 법률·대통령령·법률시행령 등 약 5,600여 개 법령,
-        20만여 개 조문이며 호·항·목까지 복원했습니다. 자치법규는 설정 › 자치법규에서 문서 파일을
-        추가하면 ‘자치’ 표시와 함께 조회됩니다.</div>
-    </details>
-    <details name="q" data-rv><summary><span class="pm"></span>데이터는 어떻게 최신화되나요?</summary>
-      <div class="answer">매일 새벽 3시(한국시간) 개정분만 델타로 배포하고 모든 파일을 SHA-256으로
-        검증합니다. 갱신 체인에 틈이 있으면 자동으로 전체 스냅샷을 받아 복구합니다. 배포는 GitHub와
-        이 서버의 자체 미러를 모두 사용해 한쪽이 막혀도 최신화가 이어집니다.</div>
-    </details>
-    <details name="q" data-rv><summary><span class="pm"></span>복사하지 않고 직접 검색할 수도 있나요?</summary>
-      <div class="answer">네, <b>Ctrl+Alt+L</b>이면 어떤 창에서든 조회 창이 뜹니다. “민법 750”처럼
-        대략적으로 입력해도 찾습니다.</div>
-    </details>
-    <details name="q" data-rv><summary><span class="pm"></span>지우려면 어떻게 하나요?</summary>
-      <div class="answer">프로그램 폴더와 설정·데이터(AppData › immediatelylaw)만 사용합니다.
-        프로그램 추가/제거나 폴더 삭제 후 위 폴더를 지우면 흔적 없이 사라집니다.</div>
-    </details>
-  </div>
-</section>
-
-<!-- ══ 내려받기: 빈칸이 곧 파일인 문장 ══ -->
-<section class="download" id="download">
-  <h2 class="sent" data-rv>법전 전체를<br>한 파일에 담아,</h2>
-  <p class="dlrow" data-rv>
-    <span class="slot" id="fName">ImmediatelyLaw-offline-1.3.9.zip</span>
-    <a class="btn" id="dlBtn" href="ImmediatelyLaw-offline-1.3.9.zip" download>바로 시작</a></p>
-  <div class="dlmeta" data-rv>
-    <div class="segs" role="group" aria-label="패키지 선택">
-      <button class="chip" type="button" id="segO" aria-pressed="true">오프라인 패키지 (권장 · 데이터 동봉)</button>
-      <button class="chip" type="button" id="segW" aria-pressed="false">온라인 패키지</button>
-    </div>
-    <p class="dlnote">풀어서 ImmediatelyLaw.exe를 실행하면 트레이에 자리합니다. 관리자 권한
-      불필요 · Windows 10·11 64비트 · 첫 실행부터 인터넷 없이 동작합니다. 크기 <b id="fSize">85.3MB</b>.</p>
-    <p class="hashline" id="fHash" title="클릭하면 전체 해시가 복사됩니다">SHA-256 <b>5695052d1e28365b…f9f524</b> · 이 서버 app-latest.json의 실시간 값입니다. 클릭하면 복사됩니다.</p>
-  </div>
-</section>
-
-<!-- ══ 푸터: 블록으로 세운 표지 ══ -->
 <footer>
-  <div class="blocks" aria-label="즉시로">
-    <span class="k" aria-hidden="true">즉</span>
-    <span class="k" aria-hidden="true">시</span>
-    <span class="k" aria-hidden="true">로</span>
-    <span class="k br" aria-hidden="true">「</span>
-  </div>
-  <div class="fcols">
-    <div class="fcol c1"><h3>이 페이지</h3>
-      <a href="#how">순서</a><a href="#scale">규모</a><a href="#faq">물음</a><a href="#download">내려받기</a></div>
-    <div class="fcol c2"><h3>바깥</h3>
-      <a href="https://youtu.be/rZUceBYTzhg" rel="noopener">사용 영상</a>
-      <a href="https://github.com/nazgregory/ImmediatelyLaw" rel="noopener">소스 코드</a>
-      <a href="https://github.com/nazgregory/ImmediatelyLaw/security/policy" rel="noopener">보안 정책</a></div>
-    <div class="fcol c3"><h3>만나는 곳</h3>
-      <a href="mailto:irize@seocho.go.kr">irize@seocho.go.kr</a>
-      <a href="tel:+82221556089">02-2155-6089</a>
-      <span class="muted">서초구청 홍성민 주무관</span></div>
-    <div class="fcol c4"><h3>데이터</h3>
-      <span class="muted">매일 03:00(대한민국 표준시) 갱신</span>
-      <span class="muted">출처: 국가법령정보센터 OPEN API</span></div>
-  </div>
-  <div class="frow">
-    <p class="legal">© 2026 홍성민 · MIT 라이선스 · 표기된 조문은 참고용이며 공식 효력은 국가법령정보센터 원문만 가집니다 · 사진: <a href="https://commons.wikimedia.org/wiki/File:Republic_of_Korea_capitol.jpg">Cjb8293, CC BY-SA 4.0</a></p>
-    <a class="btn" href="#top">맨 위로</a>
+  <div class="wrap">
+    <a class="fmark" href="#top"><i>「</i>즉시로<i>」</i></a>
+    <nav aria-label="페이지 이동">
+      <a href="#why">편리성</a><a href="#download">다운로드</a><a href="#contact">문의</a>
+      <a href="https://github.com/nazgregory/ImmediatelyLaw/security/policy" rel="noopener">보안 정책</a>
+    </nav>
+    <p class="legal">© 2026 홍성민 · MIT 라이선스 · 데이터 출처 국가법령정보센터(법제처) OPEN API ·
+      표기된 조문은 참고용이며 공식 효력은 국가법령정보센터 원문만 가집니다.</p>
   </div>
 </footer>
+
 <script>const ARTICLES={"minp0750": {"law": "민법", "art": "750", "title": "불법행위의 내용", "chap": "제5장 불법행위", "body": "제750조(불법행위의 내용) 고의 또는 과실로 인한 위법행위로 타인에게 손해를 가한 자는 그 손해를 배상할 책임이 있다."}, "hyung004": {"law": "형법", "art": "4", "title": "국외에 있는 내국선박 등에서 외국인이 범한 죄", "chap": "제1장 형법의 적용범위", "body": "제4조(국외에 있는 내국선박 등에서 외국인이 범한 죄) 본법은 대한민국영역외에 있는 대한민국의 선박 또는 항공기내에서 죄를 범한 외국인에게 적용한다."}, "jaenan003": {"law": "재난 및 안전관리 기본법", "art": "3", "title": "정의", "chap": "제1장 총칙 <개정 2010.6.8>", "body": "제3조(정의) 이 법에서 사용하는 용어의 뜻은 다음과 같다. <개정 2009.12.29, 2011.3.29, 2012.2.22, 2013.3.23, 2013.8.6, 2014.11.19, 2014.12.30, 2015.7.24, 2016.1.7, 2017.1.17, 2017.7.26, 2018.9.18, 2019.3.26, 2019.12.3, 2020.6.9, 2020.12.22, 2021.6.8, 2023.5.16, 2024.1.16, 2025.1.7>\n1. \"재난\"이란 국민의 생명ㆍ신체ㆍ재산과 국가에 피해를 주거나 줄 수 있는 것으로서 다음 각 목의 것을 말한다.\n가. 자연재난: 태풍, 홍수, 호우(豪雨), 강풍, 풍랑, 해일(海溢), 대설, 한파, 낙뢰, 가뭄, 폭염, 지진, 황사(黃砂), 조류(藻類) 대발생, 조수(潮水), 화산활동, 「우주개발 진흥법」에 따른 자연우주물체의 추락ㆍ충돌, 그 밖에 이에 준하는 자연현상으로 인하여 발생하는 재해\n나. 사회재난: 화재ㆍ붕괴ㆍ폭발ㆍ교통사고(항공사고 및 해상사고를 포함한다)ㆍ화생방사고ㆍ환경오염사고ㆍ다중운집인파사고 등으로 인하여 발생하는 대통령령으로 정하는 규모 이상의 피해와 국가핵심기반의 마비, 「감염병의 예방 및 관리에 관한 법률」에 따른 감염병 또는 「가축전염병예방법」에 따른 가축전염병의 확산, 「미세먼지 저감 및 관리에 관한 특별법」에 따른 미세먼지, 「우주개발 진흥법」에 따른 인공우주물체의 추락ㆍ충돌 등으로 인한 피해\n다. 삭제 <2013.8.6>\n2. \"해외재난\"이란 대한민국의 영역 밖에서 대한민국 국민의 생명ㆍ신체 및 재산에 피해를 주거나 줄 수 있는 재난으로서 정부차원에서 대처할 필요가 있는 재난을 말한다.\n3. \"재난관리\"란 재난의 예방ㆍ대비ㆍ대응 및 복구를 위하여 하는 모든 활동을 말한다.\n4. \"안전관리\"란 재난이나 그 밖의 각종 사고로부터 사람의 생명ㆍ신체 및 재산의 안전을 확보하기 위하여 하는 모든 활동을 말한다.\n4의2. \"안전기준\"이란 각종 시설 및 물질 등의 제작, 유지관리 과정에서 안전을 확보할 수 있도록 적용하여야 할 기술적 기준을 체계화한 것을 말하며, 안전기준의 분야, 범위 등에 관하여는 대통령령으로 정한다.\n5. \"재난관리책임기관\"이란 재난관리업무를 하는 다음 각 목의 기관을 말한다.\n가. 중앙행정기관 및 지방자치단체(「제주특별자치도 설치 및 국제자유도시 조성을 위한 특별법」 제10조제2항에 따른 행정시를 포함한다)\n나. 지방행정기관ㆍ공공기관ㆍ공공단체(공공기관 및 공공단체의 지부 등 지방조직을 포함한다) 및 재난관리의 대상이 되는 중요시설의 관리기관 등으로서 대통령령으로 정하는 기관\n5의2. \"재난관리주관기관\"이란 재난이나 그 밖의 각종 사고에 대하여 그 유형별로 예방ㆍ대비ㆍ대응 및 복구 등의 업무를 주관하여 수행하도록 대통령령으로 정하는 관계 중앙행정기관을 말한다.\n6. \"긴급구조\"란 재난이 발생할 우려가 현저하거나 재난이 발생하였을 때에 국민의 생명ㆍ신체 및 재산을 보호하기 위하여 긴급구조기관과 긴급구조지원기관이 하는 인명구조, 응급처치, 그 밖에 필요한 모든 긴급한 조치를 말한다.\n7. \"긴급구조기관\"이란 소방청ㆍ소방본부 및 소방서를 말한다. 다만, 해양에서 발생한 재난의 경우에는 해양경찰청ㆍ지방해양경찰청 및 해양경찰서를 말한다.\n8. \"긴급구조지원기관\"이란 긴급구조에 필요한 인력ㆍ시설 및 장비, 운영체계 등 긴급구조능력을 보유한 기관이나 단체로서 대통령령으로 정하는 기관과 단체를 말한다.\n9. \"국가재난관리기준\"이란 모든 유형의 재난에 공통적으로 활용할 수 있도록 재난관리의 전 과정을 통일적으로 단순화ㆍ체계화한 것으로서 행정안전부장관이 고시한 것을 말한다.\n9의2. \"안전문화활동\"이란 안전교육, 안전훈련, 홍보, 사고 예방 신고 장려 등을 통하여 안전에 관한 가치와 인식을 높이고 안전을 생활화하도록 하는 등 재난이나 그 밖의 각종 사고로부터 안전한 사회를 만들어가기 위한 활동을 말한다.\n9의3. \"안전취약계층\"이란 어린이, 노인, 장애인, 저소득층 등 신체적ㆍ사회적ㆍ경제적 요인으로 인하여 재난에 취약한 사람을 말한다.\n10. \"재난관리정보\"란 재난관리를 위하여 필요한 재난상황정보, 동원가능 자원정보, 시설물정보, 지리정보를 말한다.\n10의2. \"재난안전의무보험\"이란 재난이나 그 밖의 각종 사고로 사람의 생명ㆍ신체 또는 재산에 피해가 발생한 경우 그 피해를 보상하기 위한 보험 또는 공제(共濟)로서 이 법 또는 다른 법률에 따라 일정한 자에 대하여 가입을 강제하는 보험 또는 공제를 말한다.\n11. \"재난안전통신망\"이란 재난관리책임기관ㆍ긴급구조기관 및 긴급구조지원기관이 재난 및 안전관리업무에 이용하거나 재난현장에서의 통합지휘에 활용하기 위하여 구축ㆍ운영하는 통신망을 말한다.\n12. \"국가핵심기반\"이란 에너지, 정보통신, 교통수송, 보건의료 등 국가경제, 국민의 안전ㆍ건강 및 정부의 핵심기능에 중대한 영향을 미칠 수 있는 시설, 정보기술시스템 및 자산 등을 말한다.\n13. \"재난안전데이터\"란 정보처리능력을 갖춘 장치를 통하여 생성 또는 처리가 가능한 형태로 존재하는 재난 및 안전관리에 관한 정형 또는 비정형의 모든 자료를 말한다.\n[전문개정 2010.6.8]"}, "gaedemo": {"law": "민법", "art": "10", "title": "피성년후견인의 행위와 취소", "chap": "제1절 능력", "body": "제10조(피성년후견인의 행위와 취소)\n① 피성년후견인의 법률행위는 취소할 수 있다.\n② 제1항에도 불구하고 가정법원은 취소할 수 없는 피성년후견인의 법률행위의 범위를 정할 수 있다.\n③ 가정법원은 본인, 배우자, 4촌 이내의 친족, 성년후견인, 성년후견감독인, 검사 또는 지방자치단체의 장의 청구에 의하여 제2항의 범위를 변경할 수 있다.\n④ 제1항에도 불구하고 일용품의 구입 등 일상생활에 필요하고 그 대가가 과도하지 아니한 법률행위는 성년후견인이 취소할 수 없다.\n[전문개정 2011.3.7]"}};</script>
 <script>
 /* ===== 실제 제품과 같은 조문 렌더 규칙(overlay.article_html 포터) ===== */
@@ -539,9 +396,9 @@ function artHTML(a){
 }
 const titleOf = a => `${a.law} 제${a.art}조${a.title?"("+a.title+")":""}`;
 
-/* ===== 서명 모션: 색인 행 ↔ 프리뷰(240ms 크로스페이드) ===== */
+/* ===== 실물 카드 프리뷰 + 실제 복사 ===== */
 const card = document.getElementById("previewCard");
-const rows = [...document.querySelectorAll(".index .row")];
+const chips = [...document.querySelectorAll(".chip")];
 function cardHTML(a){
   return `<div class="pc-top"><span class="pc-title">${esc(titleOf(a))}</span>`
        + `<span class="pc-badge">현행</span>`
@@ -554,14 +411,13 @@ function cardHTML(a){
        + `<button class="pc-copy" type="button" tabindex="-1">복사</button></div>`;
 }
 let currentKey = "minp0750";
-function show(k, instant){
+function show(k){
   if (k === currentKey && card.dataset.built === "1") return;
-  currentKey = k;
-  card.dataset.built = "1";
-  rows.forEach(r=>r.setAttribute("aria-pressed", String(r.dataset.k === k)));
+  currentKey = k; card.dataset.built = "1";
+  chips.forEach(c=>c.setAttribute("aria-pressed", String(c.dataset.k === k)));
   const paint = ()=>{ card.innerHTML = cardHTML(ARTICLES[k]);
     card.setAttribute("aria-label","즉시로 카드: "+titleOf(ARTICLES[k])); };
-  if (instant || matchMedia("(prefers-reduced-motion: reduce)").matches){ paint(); return; }
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches){ paint(); return; }
   card.classList.add("fade");
   setTimeout(()=>{ paint(); card.classList.remove("fade"); }, 180);
 }
@@ -586,17 +442,15 @@ function copyArticle(k){
     ta.remove(); done(ok);
   }
 }
-rows.forEach(r=>{
-  r.addEventListener("pointerenter", ()=>show(r.dataset.k));
-  r.addEventListener("focus", ()=>show(r.dataset.k));
-  r.addEventListener("click", ()=>copyArticle(r.dataset.k));
+chips.forEach(c=>{
+  c.addEventListener("pointerenter", ()=>show(c.dataset.k));
+  c.addEventListener("focus", ()=>show(c.dataset.k));
+  c.addEventListener("click", ()=>copyArticle(c.dataset.k));
 });
-card.addEventListener("click", e=>{
-  if (e.target.closest(".pc-copy")) copyArticle(currentKey);
-});
-show("minp0750", true);
+card.addEventListener("click", e=>{ if (e.target.closest(".pc-copy")) copyArticle(currentKey); });
+show("minp0750");
 
-/* ===== 실시간 배포 정보(이 서버의 파일·해시를 그대로 노출) ===== */
+/* ===== 실시간 배포 정보(이 서버의 app-latest.json 그대로) ===== */
 const FALLBACK = {
   version:"1.3.9",
   files:{
@@ -606,17 +460,23 @@ const FALLBACK = {
       sha256:"b2df923b6e604bd2e53415477dfc3bef5b3a2ab63b036bf96e5237b1b197ef38"}
   }
 };
-let RELEASE = FALLBACK, pick = "offline";
+let RELEASE = FALLBACK;
 const fHashBox = document.getElementById("fHash");
+const mb = n => (n/1048576).toFixed(1)+"MB";
 function paintDl(){
-  const f = RELEASE.files[pick];
-  if (!f) return;
-  document.getElementById("fName").textContent = f.file;
-  document.getElementById("dlBtn").href = f.file;
-  const top = document.getElementById("dlTop");
-  if (top) top.href = f.file;
-  document.getElementById("fSize").textContent = (f.size/1048576).toFixed(1)+"MB";
-  fHashBox.innerHTML = `SHA-256 <b>${f.sha256.slice(0,16)}…${f.sha256.slice(-6)}</b> · 이 서버 app-latest.json의 실시간 값입니다. 클릭하면 복사됩니다.`;
+  const o = RELEASE.files.offline, w = RELEASE.files.online;
+  if (!o || !w) return;
+  document.getElementById("fName").textContent = o.file;
+  document.getElementById("dlBtn").href = o.file;
+  document.getElementById("dlTop").href = o.file;
+  document.getElementById("fSize").textContent = mb(o.size);
+  document.getElementById("fVer").textContent = "v"+RELEASE.version;
+  document.getElementById("fNameW").textContent = w.file;
+  document.getElementById("dlBtnW").href = w.file;
+  document.getElementById("fSizeW").textContent = mb(w.size);
+  document.getElementById("fVerW").textContent = "v"+RELEASE.version;
+  fHashBox.innerHTML = `SHA-256 <b>${o.sha256.slice(0,16)}…${o.sha256.slice(-6)}</b> · 이 서버 배포 정보(app-latest.json)의 실시간 값입니다. 클릭하면 복사됩니다.`;
+  fHashBox.dataset.h = o.sha256;
 }
 fetch("app-latest.json", {cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject())
   .then(j=>{ RELEASE = j; paintDl(); }).catch(()=>{});
@@ -625,19 +485,9 @@ fetch("manifest.json", {cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject(
     if (v.length>=8) document.getElementById("dver").textContent =
       v.slice(0,4)+"."+v.slice(4,6)+"."+v.slice(6,8); })
   .catch(()=>{});
-function seg(on){
-  pick = on ? "offline" : "online";
-  document.getElementById("segO").setAttribute("aria-pressed", String(on));
-  document.getElementById("segW").setAttribute("aria-pressed", String(!on));
-  paintDl();
-}
-document.getElementById("segO").addEventListener("click", ()=>seg(true));
-document.getElementById("segW").addEventListener("click", ()=>seg(false));
 fHashBox.addEventListener("click", ()=>{
-  const f = RELEASE.files[pick];
-  if (f && navigator.clipboard) navigator.clipboard.writeText(f.sha256)
-    .then(()=>{ fHashBox.innerHTML = "<b>전체 해시를 복사했습니다</b>";
-      setTimeout(paintDl, 1800); });
+  if (fHashBox.dataset.h && navigator.clipboard) navigator.clipboard.writeText(fHashBox.dataset.h)
+    .then(()=>{ fHashBox.innerHTML = "<b>전체 해시를 복사했습니다</b>"; setTimeout(paintDl, 1800); });
 });
 paintDl();
 
