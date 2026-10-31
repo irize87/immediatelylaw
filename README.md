@@ -43,7 +43,7 @@
 
 ### 다운로드 (편한 곳)
 
-| 버전 | GitHub Releases | GitLab 직접 다운로드 | 오라클 서버(자가 미러) |
+| 버전 | GitHub Releases | GitLab 직접 다운로드 | 배포용 서버 |
 |---|---|---|---|
 | 온라인(앱만) | [Releases](https://github.com/nazgregory/ImmediatelyLaw/releases) | [ImmediatelyLaw-online.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/download/ImmediatelyLaw-online.zip) | [ImmediatelyLaw-online-1.3.9.zip](https://152.67.205.216/ImmediatelyLaw-online-1.3.9.zip) |
 | 오프라인(앱+데이터) | [Releases](https://github.com/nazgregory/ImmediatelyLaw/releases) | [ImmediatelyLaw-offline.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/download/ImmediatelyLaw-offline.zip) | [ImmediatelyLaw-offline-1.3.9.zip](https://152.67.205.216/ImmediatelyLaw-offline-1.3.9.zip) |
@@ -52,10 +52,10 @@
 > 릴리즈 화면 없이도 파일을 바로 받을 수 있습니다. 링크가 열리지 않으면 저장소에서
 > 브랜치를 `download`로 바꾼 뒤 파일의 [Raw]를 누르세요.
 >
-> 오라클 서버는 발행 서버가 직접 운영하는 배포 미러로, 매일 발행된 최신 배포 파일과
+> 배포용 서버는 발행 서버가 직접 운영하는 배포 미러로, 매일 발행된 최신 배포 파일과
 > SHA-256을 함께 보여주는 다운로드 페이지( <https://152.67.205.216/> )를 제공합니다.
 > 자체서명 인증서를 쓰므로 브라우저가 경고하면 "자세히 → 계속"을 누르면 됩니다.
-> 앱의 자동 업데이트도 이 미러를 2순위 채널로 사용하며 인증서 지문 고정으로 검증합니다.
+> 앱의 자동 업데이트도 이 서버를 2순위 채널로 사용하며 인증서 지문 고정으로 검증합니다.
 
 zip을 받아 압축을 풉니다. 
 
