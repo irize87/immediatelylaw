@@ -38,9 +38,7 @@ def mark(rid: int, phase: str, **fields):
     line = f"{time.perf_counter_ns() - _t0} rid={rid} {phase}{extra}\n"
     _written += len(line)
     _sink.write(line)
-    # 한 복사 이벤트의 완결점에서는 버퍼를 밀어둔다(kill 시 로그 유실 방지).
-    if phase.endswith(("paint", "requested", "fail")):
-        _sink.flush()
+    _sink.flush()   # killing 시 유실 방지 — 측정 브랜치는 매 줄 flush가 더 정확
 
 
 def flush():

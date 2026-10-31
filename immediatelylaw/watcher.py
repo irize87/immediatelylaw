@@ -40,10 +40,10 @@ class ClipboardWatcher(QObject):
         self._ev_now = 0
 
     def _on_changed(self):
-        if self.cfg["clipboard_paused"]:
-            return
         self._ev_now = next(self._ev)
         perf.mark(self._ev_now, "clipboard_event")
+        if self.cfg["clipboard_paused"]:
+            return
         self._timer.start()
 
     def _handle(self):

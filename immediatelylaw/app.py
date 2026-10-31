@@ -12,7 +12,7 @@ from PySide6.QtGui import (QBrush, QColor, QCursor, QFont, QIcon,
 from PySide6.QtWidgets import (QApplication, QMenu, QMessageBox,
                                QProgressDialog, QSystemTrayIcon, QWidget)
 
-from . import (__version__, APP_TITLE, localreg, refparse, resolver,
+from . import (__version__, APP_TITLE, localreg, perf, refparse, resolver,
                theme)
 from .config import get_config
 from .db import get_db
@@ -81,6 +81,7 @@ class ImmediatelyLaw(QObject):
 
         self.watcher = ClipboardWatcher(app.clipboard(), self.cfg)
         self.watcher.citation.connect(self._on_citation)
+        QTimer.singleShot(0, lambda: perf.mark(0, "LOOP_ALIVE"))
 
         self.search = None
         self.settings = None
@@ -179,7 +180,7 @@ class ImmediatelyLaw(QObject):
         cites = payload.get("cites") or []
         if not cites:
             return
-        rid = payload.get("rid") or 0
+        rid = int(payload.get("rid") or 0)
         c0 = cites[0]
         # 같은 법령 계열(본법 기준) 인용은 이어서 함께 표시한다.
         # 예: 「도서관법」 제33조 및 같은 법 시행령 제19조
