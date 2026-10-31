@@ -172,6 +172,21 @@ class SettingsDialog(QDialog):
         self.local_tbl.setSelectionMode(QTableWidget.SingleSelection)
         self.local_tbl.setEditTriggers(QTableWidget.NoEditTriggers)
         self.local_tbl.setAlternatingRowColors(True)
+        self.local_tbl.setShowGrid(False)
+        # 요청 사양: 배경 흰색, 격줄만 아주 연한 회색, 글자색은 행 uniformly.
+        # (테마가 다크여도 이 표는 밝게 유지해 법령명색이 행마다 달라 보이지 않게)
+        self.local_tbl.setStyleSheet(
+            "QTableWidget{background:#ffffff;color:#20242b;"
+            "border:1px solid #d7dbe0;}"
+            "QTableWidget::item{color:#20242b;background:transparent;"
+            "padding:4px 8px;}"
+            "QTableWidget::item:alternate{background:#f6f8fa;}"
+            "QTableWidget::item:selected{background:#e3ecfa;color:#20242b;}"
+            "QHeaderView::section{background:#f3f5f8;color:#5b6470;"
+            "border:none;border-bottom:1px solid #d7dbe0;padding:5px 8px;"
+            "font-weight:bold;}")
+        vp = self.local_tbl.viewport()
+        vp.setStyleSheet("background:#ffffff;")
         lay.addWidget(self.local_tbl, 1)
         row = QHBoxLayout()
         b_add = QPushButton("파일 추가…")

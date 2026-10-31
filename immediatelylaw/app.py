@@ -545,7 +545,7 @@ class ImmediatelyLaw(QObject):
         m = QMenu()
         act_search = m.addAction("법령 검색창  (Ctrl+Alt+L)")
         act_search.triggered.connect(self.show_search)
-        act_set = m.addAction("설정")
+        act_set = m.addAction(f"설정  (v{__version__})")
         act_set.triggered.connect(self.show_settings)
         act_quit = m.addAction("종료")
         act_quit.triggered.connect(self.app.quit)
