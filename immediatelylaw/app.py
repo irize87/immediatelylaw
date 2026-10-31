@@ -43,6 +43,19 @@ def make_icon() -> QIcon:
     return QIcon(pm)
 
 
+def set_app_user_model_id():
+    """작업표시줄 단추를 호스트(pythonw.exe=파이썬 아이콘)에서 떼어
+    앱 고유의 트레이 아이콘('법')으로 뜨게 한다. 패키징 exe에서도 동일 적용."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "Seocho.ImmediatelyLaw")
+    except Exception:
+        pass
+
+
 class HotkeyFilter(QAbstractNativeEventFilter):
     def __init__(self, callback):
         super().__init__()
@@ -215,7 +228,9 @@ class ImmediatelyLaw(QObject):
             self.overlay.set_state("법제처에서 가져오는 중…")
             w = ResolveWorker(self.db, self.api, c["law"], c["art"],
                               hints=c.get("law_all"))
-            w.done.connect(self._on_live_resolved)
+            gen = self.overlay.card_gen()
+            w.done.connect(
+                lambda res, g=gen: self._on_live_resolved(g, res))
             self._workers.append(w)
             w.start()
         else:
@@ -228,7 +243,9 @@ class ImmediatelyLaw(QObject):
             if not self.overlay.isVisible():
                 self.overlay._place_and_show()
 
-    def _on_live_resolved(self, res: dict):
+    def _on_live_resolved(self, gen: int, res: dict):
+        if gen != self.overlay.card_gen():
+            return   # 이미 다른 조문이 표시됨 — 늦은 라이브 결과는 폐기
         if res.get("found"):
             self.overlay.show_result(res)
             self._remember_law(res["law_name"])
@@ -246,6 +263,7 @@ class ImmediatelyLaw(QObject):
 
     # ---------- 검증 ----------
     def _start_verify(self, res: dict):
+        gen = self.overlay.card_gen()   # 이 검증이 속한 카드 세대
         if not self.cfg["verify_enabled"]:
             # 실시간 확인 꺼짐 — 배지도 '데이터 기준'임을 분명히 표시한다.
             ver = self.db.get_meta("data_ver") or ""
@@ -261,11 +279,13 @@ class ImmediatelyLaw(QObject):
                     "실행해 보세요.")
             return
         w = VerifyWorker(self.db, self.api, res)
-        w.done.connect(self._on_verified)
+        w.done.connect(lambda kind, msg, g=gen: self._on_verified(g, kind, msg))
         self._workers.append(w)
         w.start()
 
-    def _on_verified(self, kind: str, msg: str):
+    def _on_verified(self, gen: int, kind: str, msg: str):
+        if gen != self.overlay.card_gen():
+            return   # 다른 조문이 이미 표시됨 — 늦은 결과는 폐기한다
         text = {"current": "현행", "check": "확인",
                 "offline": "오프라인"}.get(kind)
         if kind == "check" and msg:
@@ -578,6 +598,7 @@ def _single_instance() -> bool:
 
 def main():
     import logging
+    set_app_user_model_id()
     from .db import DATA_DIR
     log_dir = DATA_DIR
     os.makedirs(log_dir, exist_ok=True)

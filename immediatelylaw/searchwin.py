@@ -266,11 +266,14 @@ class SearchWindow(QWidget):
     def _verify(self, res):
         from .workers import VerifyWorker
         w = VerifyWorker(self.db, self.api_getter(), res)
-        w.done.connect(self._on_verified)
+        w.done.connect(
+            lambda kind, msg, r=res: self._on_verified(r, kind, msg))
         self._workers.append(w)
         w.start()
 
-    def _on_verified(self, kind, msg):
+    def _on_verified(self, res, kind, msg):
+        if res is not self._last_res:
+            return   # 이미 더 새로운 조문이 표시됨 — 늦은 결과 폐기
         text = {"current": "현행", "check": "확인",
                 "offline": "오프라인"}.get(kind, str(kind))
         self._show_badge(kind if kind in ("current", "check") else "neutral",

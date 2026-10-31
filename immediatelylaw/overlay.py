@@ -405,6 +405,7 @@ class OverlayCard(QWidget):
         lay.addWidget(self.footer)
 
         self._badge = ("neutral", "", BADGE_TIP["neutral"])
+        self._gen = 0        # 표시 세대: 늦게 도착한 검증 결과 판정용
         self._refresh_palette()
 
     # ---------- 테마 ----------
@@ -468,9 +469,15 @@ class OverlayCard(QWidget):
     def show_result(self, res: dict, note: str = "", rid: int = 0):
         self.show_results([res], note, rid=rid)
 
+    def card_gen(self) -> int:
+        """표시 세대 번호. show_results마다 증가 — 검증 워커가 늦게 돌아와도
+        이미 다른 조문으로 바뀐 카드에는 결과를 적용하지 않도록 한다."""
+        return self._gen
+
     def show_results(self, res_list, note: str = "", rid: int = 0):
         """조문 1건 또는 여러 건(법+시행령 등)을 이어서 표시."""
         res = res_list[0]
+        self._gen += 1
         self._rid = rid
         self._paint_pending = True
         self._current = res
