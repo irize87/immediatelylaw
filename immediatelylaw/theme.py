@@ -77,6 +77,8 @@ def app_qss(cfg) -> str:
     QScrollBar::handle:vertical {{ background:{p['border']};
         border-radius:5px; min-height:24px; }}
     QScrollBar::add-line, QScrollBar::sub-line {{ height:0; width:0; }}
+    QScrollBar::up-button, QScrollBar::down-button {{
+        width:0; height:0; border:none; background:transparent; }}
     QScrollBar::add-page, QScrollBar::sub-page {{ background:transparent; }}
     QToolTip {{ background:{p['panel']}; color:{p['fg']};
         border:1px solid {p['border']}; }}

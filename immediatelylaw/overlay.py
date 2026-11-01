@@ -6,7 +6,7 @@ import time
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (QColor, QFont, QIcon, QPainter, QPen, QPixmap)
-from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect,
+from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QScrollBar,
                                QHBoxLayout, QLabel, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
 
@@ -27,6 +27,46 @@ BADGE_TIP = {
     "check": "실시간 확인 결과 재확인이 필요합니다.",
     "neutral": "저장된 데이터 기준으로 표시합니다.",
 }
+
+
+class ThinScrollBar(QScrollBar):
+    """연한 알약형 핸들만 직접 그리는 스크롤바.
+
+    QSS로 버튼/그루브를 접어도 Windows 기본 스타일이 화살표 버튼 프레임을
+    가끔 새는듯 그려낸다(카드 우측 상단의 '작은 네모' 민원). 페인트를
+    전면 통제해 핸들 외 아무것도 그리지 않는다. 드래그/클릭 등 상호작용은
+    QScrollBar 자체 로직을 그대로 쓴다(그림만 바꾼 위젯)."""
+
+    def __init__(self, color: str = "#b8cde9", parent=None):
+        super().__init__(parent)
+        self._color = QColor(color)
+        self.setCursor(Qt.PointingHandCursor)
+        # 직접 페인트이므로 값/범위 변화 시 스스로 갱신한다.
+        self.valueChanged.connect(lambda *_: self.update())
+        self.rangeChanged.connect(lambda *_: self.update())
+
+    def set_color(self, color: str):
+        self._color = QColor(color)
+        self.update()
+
+    def sizeHint(self):                  # QAbstractScrollArea가 예약할 폭
+        return QSize(10, 0)
+
+    def minimumSizeHint(self):
+        return self.sizeHint()
+
+    def paintEvent(self, _ev):           # noqa: N802 (Qt 네이밍 유지)
+        if self.maximum() <= self.minimum():
+            return                       # 스크롤 불필요 → 아무것도 안 그린다
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        total = self.maximum() - self.minimum()
+        page = max(1, self.pageStep())
+        h = max(30, round(self.height() * page / (total + page)))
+        y = round((self.height() - h) * (self.value() - self.minimum()) / total)
+        p.setPen(Qt.NoPen)
+        p.setBrush(self._color)
+        p.drawRoundedRect(2, y + 2, self.width() - 4, h - 4, 3, 3)
 
 
 class FooterBar(QWidget):
@@ -393,8 +433,16 @@ class OverlayCard(QWidget):
         self.tv = QTextBrowser(self.body)
         self.tv.setOpenExternalLinks(False)
         self.tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 커스텀 ThinScrollBar는 AlwaysOn이어도 스크롤이 불필요하면 아무것도
+        # 그리지 않으므로(최대<=최소일 때 미도색) 항상 켜둔다. AsNeeded는
+        # 위젯 자체를 숨겨 파란 핸들까지 안 보이는 문제가 있다.
+        self.tv.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.tv.setStyleSheet(
             "QTextBrowser{border:none;background:transparent;}")
+        # 스크롤바는 스타일(Windows 기본)이 버튼 프레임을 새게 그려 QSS로
+        # 억제가 불안정 → 핸들만 직접 그리는 위젯으로 교체한다.
+        self.tv_sb = ThinScrollBar()
+        self.tv.setVerticalScrollBar(self.tv_sb)
         self.tv.setMinimumHeight(60)
         self.tv.setMaximumHeight(int(self._screen_h() * 0.5))
         lay.addWidget(self.tv)
@@ -426,17 +474,9 @@ class OverlayCard(QWidget):
             f"border-radius:16px;}}")
         self.line.setStyleSheet(
             f"QFrame{{background:{p['border']};border:none;}}")
-        handle = "#4a525e" if p["dark"] else "#d3d8df"
-        self.tv.setStyleSheet(
-            "QTextBrowser{border:none;background:transparent;}"
-            "QScrollBar:vertical{background:transparent;width:8px;"
-            "margin:2px 2px 2px 0;}"
-            f"QScrollBar::handle:vertical{{background:{handle};"
-            "border-radius:3px;min-height:32px;}}"
-            "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical"
-            "{height:0;background:none;}"
-            "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical"
-            "{background:none;}")
+        # 스크롤바는 ThinScrollBar가 직접 그림(테마 색상만 전달). QSS로는
+        # Windows 기본 스타일의 버튼 프레임(우상단 네모)을 안정적으로 못 지운다.
+        self.tv_sb.set_color("#4a525e" if p["dark"] else "#b8cde9")
         self._shadow.setColor(
             QColor(0, 0, 0, 110) if p["dark"] else QColor(30, 41, 59, 70))
         self.lb_title.setStyleSheet(f"color:{p['fg']};")

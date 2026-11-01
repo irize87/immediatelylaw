@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QAbstractItemView, QVBoxLayout, QWidget)
 
 from . import refparse, resolver, theme
-from .overlay import FooterBar, article_html
+from .overlay import FooterBar, ThinScrollBar, article_html
 
 
 class SearchWindow(QWidget):
@@ -52,17 +52,12 @@ class SearchWindow(QWidget):
 
         self.tv = QTextBrowser()
         self.tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 카드와 동일: AlwaysOn + "불필요하면 미도색" 커스텀 스크롤바.
+        self.tv.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.tv.setStyleSheet("QTextBrowser{border:1px solid #e3e6ea;"
-                              "border-radius:10px;background:#fff;}"
-                              "QScrollBar:vertical{background:transparent;"
-                              "width:8px;margin:4px 4px 4px 0;}"
-                              "QScrollBar::handle:vertical{background:#d3d8df;"
-                              "border-radius:3px;min-height:32px;}"
-                              "QScrollBar::add-line:vertical,"
-                              "QScrollBar::sub-line:vertical{height:0;}"
-                              "QScrollBar::add-page:vertical,"
-                              "QScrollBar::sub-page:vertical"
-                              "{background:none;}")
+                              "border-radius:10px;background:#fff;}")
+        self.tv_sb = ThinScrollBar()   # 스타일 네모 프레임 회피(overlay 참조)
+        self.tv.setVerticalScrollBar(self.tv_sb)
         root.addWidget(self.tv, 1)
 
         # 카드와 동일한 공용 하단바(글자크기 −/+ · 링크 · 복사)
@@ -80,18 +75,10 @@ class SearchWindow(QWidget):
     # ---------- 테마 ----------
     def _refresh_palette(self):
         p = theme.palette(self.cfg)
-        handle = "#4a525e" if p["dark"] else "#d3d8df"
         self.tv.setStyleSheet(
             f"QTextBrowser{{border:1px solid {p['border']};"
-            f"border-radius:10px;background:{p['panel']};}}"
-            "QScrollBar:vertical{background:transparent;"
-            "width:8px;margin:4px 4px 4px 0;}"
-            f"QScrollBar::handle:vertical{{background:{handle};"
-            "border-radius:3px;min-height:32px;}}"
-            "QScrollBar::add-line:vertical,"
-            "QScrollBar::sub-line:vertical{height:0;}"
-            "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical"
-            "{background:none;}")
+            f"border-radius:10px;background:{p['panel']};}}")
+        self.tv_sb.set_color("#4a525e" if p["dark"] else "#b8cde9")
         self.footer.apply_palette(p)
         self._render()
         self._apply_badge()
