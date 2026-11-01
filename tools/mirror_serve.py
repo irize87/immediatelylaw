@@ -87,6 +87,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         p = getattr(self, "path", "").split("?", 1)[0]
         if p.endswith(("manifest.json", "app-latest.json")):
             self.send_header("Cache-Control", "no-cache")
+        elif p.endswith(("-online-latest.zip", "-offline-latest.zip")):
+            # Always latest 별칭은 같은 이름으로 내용이 바뀌므로 재검증 필수.
+            self.send_header("Cache-Control", "no-cache")
+        elif p.endswith(".zip"):
+            # 버전이 박힌 zip은 불변 — 하루 캐시(재출시가 없는 이름).
+            self.send_header("Cache-Control", "max-age=86400")
         elif p.endswith(".db.xz") or p.lstrip("/").startswith("delta-"):
             self.send_header("Cache-Control", "max-age=86400")
         elif p.endswith(".html") or p in ("", "/"):

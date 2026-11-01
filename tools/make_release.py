@@ -75,14 +75,19 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     ver = __version__
 
-    # 발행 직전 최종 관문: 랜딩 폴백이 정본과 어긋난 상태면 발행을 중단한다
-    # (버전 정본은 immediatelylaw/__init__.py, 갱신은 tools/sync_version).
+    # 발행 직전 최종 관문: 랜딩 폴백·README 배지가 정본과 어긋난 상태면 발행을
+    # 중단한다 (버전 정본은 immediatelylaw/__init__.py, 갱신은 tools/sync_version).
     sys.path.insert(0, os.path.join(ROOT, "tools"))
     import sync_version
     found = sync_version.find_landing_versions()[0]
     stale = [v for v in found if v != ver]
     if stale or not found:
         print(f"!! web/index.html 폴백 {found or '없음'} != v{ver} — "
+              f"python -m tools.sync_version 후 다시 실행.")
+        sys.exit(2)
+    rbadges = sync_version.readme_versions()
+    if [v for v in rbadges if v != ver]:
+        print(f"!! README 배지 {rbadges} != v{ver} — "
               f"python -m tools.sync_version 후 다시 실행.")
         sys.exit(2)
 
@@ -116,8 +121,18 @@ def main():
               f"sha256={v['sha256'][:16]}…")
     print(f"  app-latest.json: {latest_path}")
 
+    # 사람용 고정 링크: Always latest 별칭(같은 바이트 복사). README가 버전과
+    # 무관한 하나의 링크를 계속 쓸 수 있게 하며, 미러에서 -latest.zip은 no-cache로 서빙.
+    aliases = []
+    for src in [online] + ([offline] if offline else []):
+        dst = os.path.join(OUT, os.path.basename(src).replace(
+            f"-{ver}.zip", "-latest.zip"))
+        shutil.copyfile(src, dst)
+        aliases.append(dst)
+        print("  latest 별칭:", os.path.basename(dst))
+
     if a.server:
-        payloads = [latest_path, online] + ([offline] if offline else [])
+        payloads = [latest_path, online] + ([offline] if offline else []) + aliases
         for p in payloads:
             print("+ scp", os.path.basename(p))
             subprocess.run(["scp", p,

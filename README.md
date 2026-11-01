@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.3.10-blue" alt="v1.3.10">
+  <img src="https://img.shields.io/badge/version-v1.5.5-blue" alt="v1.5.5">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Windows 10/11">
   <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
@@ -41,17 +41,20 @@
 
 ## 설치 방법
 
-### 다운로드 — 공식 배포 서버
+### 다운로드 — 항상 최신 버전 (고정 링크)
 
-| 버전 | 배포 서버 (공식) |
+| 버전 | 설치 파일 (최신 자동 갱신) |
 |---|---|
-| 온라인(앱만) | [ImmediatelyLaw-online.zip](https://152.67.205.216/ImmediatelyLaw-online-1.3.10.zip) |
-| 오프라인(앱+데이터) | [ImmediatelyLaw-offline.zip](https://152.67.205.216/ImmediatelyLaw-offline-1.3.10.zip) |
+| 온라인(앱만) | [ImmediatelyLaw-online.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/downloads/ImmediatelyLaw-online-latest.zip) |
+| 오프라인(앱+데이터) | [ImmediatelyLaw-offline.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/downloads/ImmediatelyLaw-offline-latest.zip) |
 
-> 배포 서버가 다운로드·데이터 갱신의 유일한 공식 채널입니다.
-> 버전·무결성 정보는 같은 주소의 [app-latest.json](https://152.67.205.216/app-latest.json)에 있습니다.
-> 배포 서버는 자체서명 인증서를 쓰므로 브라우저가 경고하면 "자세히 → 계속"을 누르면 됩니다.
-> 이 저장소(GitHub)는 **소스 코드 공개 전용**이며 설치 파일은 배포 서버에서만 받습니다.
+> 링크는 고정명(`-latest.zip`)이며 새 릴리스가 나올 때마다 같은 주소 내용만 최신 버전으로
+> 교체합니다 — 이 표는 결코 낡지 않습니다. 지금 어떤 버전이 들어 있는지와 파일별 SHA-256은
+> [app-latest.json](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/downloads/app-latest.json)에 게시됩니다.
+> 과거 버전이 필요하면 [downloads 브랜치 파일 목록](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/tree/downloads)을 열하세요.
+> 설치 후에는 프로그램이 **내장된 공식 배포 서버**를 주기적으로 스스로 확인해 업데이트하므로
+> 서버 주소를 알거나 입력할 필요가 없습니다(설정 › 데이터에서 직접 서버를 운영해 교체 가능).
+> 이 저장소의 `main` 브랜치는 **소스 코드 공개 전용**이며 설치 파일은 `downloads` 브랜치에서 제공합니다.
 
 zip을 받아 압축을 풉니다. 
 
@@ -73,7 +76,7 @@ zip을 받아 압축을 풉니다.
 ### Windows의 PC 보호 (파란 경고창)
 1. Windows의 PC 보호 : **Microsoft Defender SmartScreen에서 인식할 수 없는 앱의 시작을 차단했습니다. 이 앱을 실행하면 PC가 위험에 노출될 수 있습니다.** 라는 메시지가 발견되면, 추가정보 > **실행**을 클릭합니다.
 2. 이 프로그램의 소스코드는 공개되어 있어 누구나 안전성을 검증할 수 있습니다.
-3.  반드시 공식 배포 서버(https://152.67.205.216/)에서 다운로드 한 파일을 사용하세요. 배포 서버의 app-latest.json에 파일별 SHA-256이 게시되어 있습니다.
+3. 반드시 위 공식 링크(또는 배포 서버)에서 다운로드한 파일을 사용하세요. `app-latest.json`에 파일별 SHA-256이 게시되어 있어 무결성을 확인할 수 있습니다.
 
 ---
 

@@ -128,7 +128,8 @@ class SettingsDialog(QDialog):
         lay.addWidget(lb)
         row = QHBoxLayout()
         self.ed_url = QLineEdit(self.cfg["data_base_url"])
-        self.ed_url.setPlaceholderText("비우면 배포 서버(https://152.67.205.216)를 사용합니다")
+        # 플레이스홀더에 배포 서버 주소를 박아두면 저장소만 봐도 서버가 드러난다.
+        # 칸은 완전히 비운다 — 비운 상태로 저장하면 내장 배포 서버를 쓴다(툴팁 안내).
         self.ed_url.setToolTip("직접 운영한 배포 서버 주소를 넣으면 그곳을 먼저 시도하고,\n"
                                "연결 실패나 잘못된 형식(공백·http 등)으로는 자동 전환되어\n"
                                "항상 배포 서버로 데이터를 받습니다.")
