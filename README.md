@@ -48,14 +48,6 @@
 | 온라인(앱만) | [ImmediatelyLaw-online.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/downloads/ImmediatelyLaw-online-latest.zip) |
 | 오프라인(앱+데이터) | [ImmediatelyLaw-offline.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/downloads/ImmediatelyLaw-offline-latest.zip) |
 
-> 링크는 고정명(`-latest.zip`)이며 새 릴리스가 나올 때마다 같은 주소 내용만 최신 버전으로
-> 교체합니다 — 이 표는 결코 낡지 않습니다. 지금 어떤 버전이 들어 있는지와 파일별 SHA-256은
-> [app-latest.json](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/downloads/app-latest.json)에 게시됩니다.
-> 과거 버전이 필요하면 [downloads 브랜치 파일 목록](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/tree/downloads)을 열하세요.
-> 설치 후에는 프로그램이 **내장된 공식 배포 서버**를 주기적으로 스스로 확인해 업데이트하므로
-> 서버 주소를 알거나 입력할 필요가 없습니다(설정 › 데이터에서 직접 서버를 운영해 교체 가능).
-> 이 저장소의 `main` 브랜치는 **소스 코드 공개 전용**이며 설치 파일은 `downloads` 브랜치에서 제공합니다.
-
 zip을 받아 압축을 풉니다. 
 
 설치 프로그램이 필요 없는 포터블 앱입니다. 
