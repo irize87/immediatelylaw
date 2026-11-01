@@ -25,7 +25,7 @@ echo "인증서 고정값(workers.py CERT_PINS에 기록): $HASH"
 
 # 첫 동기화
 cp -f "$APP/data/dist/"* "$DIR"/ 2>/dev/null || true
-cp -f "$APP/web/"* "$DIR"/ 2>/dev/null || true
+cp -rf "$APP/web/." "$DIR"/ 2>/dev/null || true
 chown -R "${SUDO_USER:-ubuntu}":"${SUDO_USER:-ubuntu}" "$DIR"
 
 cat >/etc/systemd/system/immediatelylaw-mirror.service <<EOF

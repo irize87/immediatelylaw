@@ -42,7 +42,7 @@ $(curl -s -m 10 https://checkip.amazonaws.com || echo 알수없음) \
     if [ "$(basename "$MIRROR_DIR")" != "즉시로-미러미설정" ]; then
         mkdir -p "$MIRROR_DIR"
         cp -f data/dist/* "$MIRROR_DIR"/ 2>/dev/null || true
-        cp -f web/* "$MIRROR_DIR"/ 2>/dev/null || true
+        cp -rf web/. "$MIRROR_DIR"/ 2>/dev/null || true
         echo "배포 서버 동기화: $MIRROR_DIR ($(ls "$MIRROR_DIR" | wc -l)개 파일)"
     fi
     echo "===== $(date -Is) 완료 ====="
