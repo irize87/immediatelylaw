@@ -2,7 +2,7 @@
 """공개 배포 검증(재사용): 버전/다운로드 sha256/랜딩 폴백·동일성.
 
 사용: python tools/release_verify.py 1.5.1
-시스템 curl.exe를 쓴다. 배포 서버는 자기서명 인증서이므로 -k로 TLS 검증을
+시스템 curl.exe를 쓴다. 배포 서버는 자체서명 인증서이므로 -k로 TLS 검증을
 우회한다(배포물 무결성은 sha256로 검증 — 이 도구의 핵심 목적)."""
 import hashlib
 import json

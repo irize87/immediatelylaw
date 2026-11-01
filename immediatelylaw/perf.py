@@ -38,7 +38,7 @@ def mark(rid: int, phase: str, **fields):
     line = f"{time.perf_counter_ns() - _t0} rid={rid} {phase}{extra}\n"
     _written += len(line)
     _sink.write(line)
-    _sink.flush()   # killing 시 유실 방지 — 측정 브랜치는 매 줄 flush가 더 정확
+    _sink.flush()   # 프로세스 종료 시 유실 방지 — 측정 브랜치는 매 줄 flush가 더 정확
 
 
 def flush():

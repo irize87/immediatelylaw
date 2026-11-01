@@ -132,16 +132,16 @@ class SettingsDialog(QDialog):
         # 칸은 완전히 비운다 — 비운 상태로 저장하면 내장 배포 서버를 쓴다(툴팁 안내).
         self.ed_url.setToolTip("직접 운영한 배포 서버 주소를 넣으면 그곳을 먼저 시도하고,\n"
                                "연결 실패나 잘못된 형식(공백·http 등)으로는 자동 전환되어\n"
-                               "항상 배포 서버로 데이터를 받습니다.")
+                               "내장 공식 배포 서버를 사용합니다.")
         row.addWidget(QLabel("배포 주소"))
         row.addWidget(self.ed_url, 1)
         lay.addLayout(row)
-        self.btn_upd = QPushButton("지금 업데이트")
+        self.btn_upd = QPushButton("지금 업더데터")
         self.btn_upd.clicked.connect(self._req_update)
         lay.addWidget(self.btn_upd)
         lay.addStretch(1)
         tip = QLabel("· 조문 열람은 항상 이 PC의 로컬 데이터로 동작합니다(오프라인 OK).\n"
-                     "· 업데이트는 하루 1회 자동이며, 아래 버튼으로 수동 실행도 됩니다.")
+                     "· 업더데터는 8시간마다 자동이며, 아래 버튼으로 수동 실행도 됩니다.")
         tip.setStyleSheet("color:#6b7280;")
         lay.addWidget(tip)
         return w
@@ -176,7 +176,7 @@ class SettingsDialog(QDialog):
         self.local_tbl.setEditTriggers(QTableWidget.NoEditTriggers)
         self.local_tbl.setAlternatingRowColors(True)
         self.local_tbl.setShowGrid(False)
-        # 요청 사양: 배경 흰색, 격줄만 아주 연한 회색, 글자색은 행 uniformly.
+        # 요청 사양: 배경 흰색, 격줄만 아주 연한 회색, 글자색은 행 전체 균일.
         # (테마가 다크여도 이 표는 밝게 유지해 법령명색이 행마다 달라 보이지 않게)
         self.local_tbl.setStyleSheet(
             "QTableWidget{background:#ffffff;color:#20242b;"
@@ -453,7 +453,7 @@ class SettingsDialog(QDialog):
         self.chk_pause.setChecked(bool(self.cfg["clipboard_paused"]))
         self.chk_auto = QCheckBox("Windows 시작 시 자동으로 실행")
         self.chk_auto.setChecked(get_autostart())
-        self.chk_updchk = QCheckBox("새 버전 알림(자동 업데이트 확인)")
+        self.chk_updchk = QCheckBox("새 버전 알림(자동 업더데터 확인)")
         self.chk_updchk.setChecked(bool(self.cfg.get("update_check", True)))
         self.btn_updnow = QPushButton("지금 새 버전 확인")
         self.btn_updnow.clicked.connect(self.app_update_requested.emit)
@@ -503,8 +503,7 @@ class SettingsDialog(QDialog):
             + a("https://github.com/nazgregory/ImmediatelyLaw",
                 "github.com/nazgregory/ImmediatelyLaw") + " (MIT)</td></tr>"
             f"<tr><td style='{td}'>법령 데이터</td><td>"
-            + a("https://152.67.205.216/manifest.json", "자가 배포 서버")
-            + " — 국가법령정보센터(법제처) 개방 데이터</td></tr>"
+            + "국가법령정보센터(법제처) 개방 데이터</td></tr>"
             "</table>")
         info.setTextFormat(Qt.RichText)
         info.setOpenExternalLinks(True)

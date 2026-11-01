@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS changelog(
 
 
 def norm_name(s: str) -> str:
-    """법령명 비교용 정규화: 공백/괄호이질 제거."""
+    """법령명 비교용 정규화: 공백 제거, 전/반각 괄호 통일."""
     if not s:
         return ""
     s = re.sub(r"\s+", "", s)
@@ -109,7 +109,7 @@ class Database:
         self.conn.close()
 
     def reload_from_file(self, new_path):
-        """업데이터가 내려받은 DB 파일로 스토어를 교체한다."""
+        """업더데터가 내려받은 DB 파일로 스토어를 교체한다."""
         with self._lock:
             try:
                 self.conn.close()
@@ -124,7 +124,7 @@ class Database:
             self.conn.row_factory = sqlite3.Row
             self.conn.execute("PRAGMA journal_mode=WAL")
             self.conn.execute("PRAGMA synchronous=NORMAL")
-            # 내려받은 파일이 구(舊)스키마여도 앱 기준 구조·인덱스를 보장한다.
+            # 내려받은 파일이 옛 스키마여도 앱 기준 구조·인덱스를 보장한다.
             self.conn.executescript(_SCHEMA)
             self.conn.commit()
 
@@ -220,7 +220,7 @@ class Database:
         d["built_at"] = self.get_meta("built_at")
         return d
 
-    # ---------- 쓰기(빌더/업데이터용) ----------
+    # ---------- 쓰기(빌더/업더데터용) ----------
     def replace_law(self, law: dict, articles: list, aliases: list,
                     action="upsert"):
         """law dict: mst/law_id/name/short/cls/promulgated/enforced/pending/agency.

@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.5.5-blue" alt="v1.5.5">
+  <img src="https://img.shields.io/badge/version-v1.5.6-blue" alt="v1.5.6">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Windows 10/11">
   <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
@@ -96,14 +96,14 @@ zip을 받아 압축을 풉니다.
 **오프라인** 배지 = 네트워크 없이 로컬 데이터 기준
 
 ### 옵션 (트레이 우클릭 › 설정)
-- **데이터**: 배포 주소(기본값 내장 — 수정 불필요), 지금 업데이트 확인
+- **데이터**: 배포 주소(기본값 내장 — 수정 불필요), 지금 업더데터 확인
 - **자치법규**: 자치법규(hwp, hwpx, doc, pdf, txt, md 등) 파일 추가, 변경, 삭제
 - **API 키**: [국가법령정보 공동활용](https://open.law.go.kr/LSO/main.do)에서 발급한
   OC 인증키 입력 시 **미보유 법령 즉시 수집 + 법제처 실시간 검증**이 추가됩니다.
   키는 Windows DPAPI로 암호화 저장되어 이 PC의 사용자만 열 수 있습니다. 없어도 전부 동작합니다.
 - **오버레이**: 모드(시스템/라이트/다크), 카드 너비, 화면 위치(4곳), 글자 크기(pt 수치 지정),
   자동 숨김 시간, 현행 여부 실시간 검증
-- **일반**: 단축키 사용, 클립보드 감시 일시정지, Windows 시작 시 실행(기본 값), 새 버전 알림·자동 업데이트(기본 켬 — 새 릴리스가 나오면 안내 후 사용자가 동의할 때만 적용)
+- **일반**: 단축키 사용, 클립보드 감시 일시정지, Windows 시작 시 실행(기본 값), 새 버전 알림·자동 업더데터(기본 켬 — 새 릴리스가 나오면 안내 후 사용자가 동의할 때만 적용)
 - **정보**: 제작자·연락처·소스 저장소·데이터 출처 안내
 
 ---
@@ -128,7 +128,7 @@ zip을 받아 압축을 풉니다.
 
 ---
 
-## 업데이트 원리
+## 업더데터 원리
 
 앱은 내장된 **공식 배포 서버**(기본값 내장 — 설정에서 직접 운영 서버로 변경 가능)를
 주기적으로(8시간 + 시작 시) 확인합니다. `manifest.json`의 `data_ver`가 로컬과 다르면

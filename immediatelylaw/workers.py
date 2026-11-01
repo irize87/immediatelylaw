@@ -41,12 +41,12 @@ def _https(url: str) -> str:
 
 
 # ---------- 배포 채널 ----------
-# 배포(데이터·프로그램·앱) 채널의 1순위는 자가 배포 서버(자체서명)다. GitHub는
+# 배포(데이터·프로그램·앱) 채널의 1순위는 공식 배포 서버(자체서명)다. GitHub는
 # 소스 코드 공개 전용으로만 쓰고 데이터 채널에서는 제외한다(옛 GitHub 데이터
 # 배포는 종료되어 현재 404 — 옛 값 걸러내기는 config.clean_base_url이 담당).
 # 같은 레이아웃(manifest.json / delta-*.json.xz / immediatelylaw-*.db.xz /
 # app-latest.json)을 배포하는 채널을 순서대로 시도한다.
-MIRROR_BASE = "https://152.67.205.216"   # 자가 배포 서버(자체서명, 인증서 고정)
+MIRROR_BASE = "https://152.67.205.216"   # 공식 배포 서버(자체서명, 인증서 고정)
 UA = "immediatelylaw-updater"
 
 # 고정(pinning) 채널은 의도적으로 verify=False + 사후 지문 검증 구조라
@@ -56,7 +56,7 @@ import urllib3  # noqa: E402
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # 자체서명 배포 서버 인증서 고정: 호스트 → 인증서(DER) sha256.
-# 인증서 재생성 시 서버의 cert_hash.txt 값을 here로 옮겨 갱신한다.
+# 인증서 재생성 시 서버의 cert_hash.txt 값을 아래 CERT_PINS로 옮겨 갱신한다.
 CERT_PINS = {
     "152.67.205.216": "590abe364c339a0dcdbe4ccfc82ea16179637768f1f2"
                       "7caa71cdc11c882d08d8",
@@ -105,8 +105,8 @@ def _verify_flag(url: str) -> bool:
 
 
 def _lzma_decompress_limited(content: bytes, limit: int) -> bytes:
-    """xz 해제 결과를 limit 바이트로 묶어 해제(초과 시 IOError). 만료
-    방지용 소량 데이터(델타)용이며, 대량 스냅샷은 _inflate이 별도 처리."""
+    """xz 해제 결과를 limit 바이트로 묶어 해제(초과 시 IOError). 압축풀기
+    폭탄 방어용(소량 데이터·델타 전용)이며, 대량 스냅샷은 _inflate이 별도 처리."""
     import io
     out = bytearray()
     with lzma.open(io.BytesIO(content), "rb") as fin:
@@ -126,7 +126,7 @@ def data_host_list(cfg) -> list:
     순서: 사용자가 지정한 배포 주소(설정, 있으면 우선) → 내장 배포 서버 →
     추가 채널(mirror_url). 배포 주소는 config.clean_base_url로 검증하므로
     사용자가 스페이스 같은 값을 넣으면 그 칸은 없는 셈 쳐져 배포 서버를
-    바라본다. 전부 실패하면 업데이트만 멈추고 앱·데이터는 지금 상태로 계속
+    바라본다. 전부 실패하면 업더데터만 멈추고 앱·데이터는 지금 상태로 계속
     동작한다."""
     raw = [clean_base_url(cfg.get("data_base_url")), MIRROR_BASE,
            clean_base_url(cfg.get("mirror_url"))]
@@ -222,7 +222,7 @@ class VerifyWorker(QThread):
 
 class UpdaterWorker(QThread):
     """배포 채널 목록으로 로컬 DB를 최신화(델타 우선, 폴백 스냅샷)."""
-    progress = Signal(str, int)          # message, percent(-1 =_indeterminate)
+    progress = Signal(str, int)          # message, percent(-1 = 진행률 없음)
     done = Signal(bool, str)             # ok, message
     db_replaced = Signal(str)            # 새 DB 파일 경로(app에서 재오픈)
 
@@ -390,7 +390,7 @@ class UpdaterWorker(QThread):
         raise IOError(" / ".join(errs) or "스냅샷 다운로드 실패")
 
 
-# ---------- 프로그램 자체 업데이트(배포 서버 app-latest.json) ----------
+# ---------- 프로그램 자체 업더데터(배포 서버 app-latest.json) ----------
 # 설치 파일을 내려받아도 되는 호스트는 배포 채널 호스트로 한정한다
 # (확인 시점의 채널 호스트가 AppDownloadWorker에서 extra로 전달된다).
 # GitHub는 소스 코드 공개 전용이며 배포·다운로드 채널로 쓰지 않는다.
@@ -473,7 +473,7 @@ class AppUpdateWorker(QThread):
 class AppDownloadWorker(QThread):
     """동의한 뒤 설치 zip을 내려받아 무결성 검사(sha256)와 함께 풀어둔다."""
     progress = Signal(str, int)
-    ready = Signal(str)      # 압출 푼 ImmediatelyLaw 폴더 경로
+    ready = Signal(str)      # 압축 푼 ImmediatelyLaw 폴더 경로
     failed = Signal(str)
 
     def __init__(self, info: dict, parent=None):

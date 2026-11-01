@@ -350,7 +350,7 @@ class ImmediatelyLaw(QObject):
         elif not auto:
             QMessageBox.information(self.search or None, APP_TITLE, msg)
 
-    # ---------- 프로그램 새 버전(자동 업데이트) ----------
+    # ---------- 프로그램 새 버전(자동 업더데터) ----------
     def _check_app_update(self, auto=True):
         if auto and not self.cfg.get("update_check", True):
             return
@@ -382,11 +382,11 @@ class ImmediatelyLaw(QObject):
         box = QMessageBox(QMessageBox.Information, APP_TITLE,
                           f"새 버전 v{ver}이(가) 나왔습니다 "
                           f"(현재 v{__version__}).\n\n"
-                          "지금 자동 업데이트할까요?\n"
+                          "지금 자동 업더데터할까요?\n"
                           "다운로드 후 설치가 끝나면 프로그램이 자동으로 "
                           "재시작됩니다.",
                           QMessageBox.NoButton, None)
-        b_yes = box.addButton("자동 업데이트", QMessageBox.AcceptRole)
+        b_yes = box.addButton("자동 업더데터", QMessageBox.AcceptRole)
         b_no = box.addButton("나중에", QMessageBox.RejectRole)
         b_skip = box.addButton("이 버전은 알림 끄기", QMessageBox.DestructiveRole) \
             if auto else None
@@ -424,7 +424,7 @@ class ImmediatelyLaw(QObject):
         w.finished.connect(lambda: self._workers.remove(w)
                            if w in self._workers else None)
         w.finished.connect(lambda: setattr(self, "_dl", None))
-        dlg = QProgressDialog(f"v{info['version']} 업데이트 준비 중…",
+        dlg = QProgressDialog(f"v{info['version']} 업더데터 준비 중…",
                               "취소", 0, 100, None)
         dlg.setWindowTitle(APP_TITLE)
         dlg.setWindowModality(Qt.WindowModal)
@@ -450,7 +450,7 @@ class ImmediatelyLaw(QObject):
             self._dlprog.reset()
             self._dlprog = None
         QMessageBox.warning(self.search or None, APP_TITLE,
-                            f"업데이트 준비에 실패했습니다.\n{msg}")
+                            f"업더데터 준비에 실패했습니다.\n{msg}")
 
     def _apply_update(self, src_dir: str, info: dict):
         """지금 프로세스를 종료하고, 교체 배치(update.bat)로 파일을 덮어쓴 뒤
@@ -461,8 +461,8 @@ class ImmediatelyLaw(QObject):
         if not getattr(sys, "frozen", False):
             QMessageBox.information(
                 self.search or None, APP_TITLE,
-                "개발 환경에서는 자동 업데이트를 적용할 수 없습니다.\n"
-                "GitHub Releases에서 설치 파일을 받아 설치하세요.")
+                "개발 환경에서는 자동 업더데터를 적용할 수 없습니다.\n"
+                "README의 공식 다운로드 링크에서 설치 파일을 받아 압축을 풀어 주세요.")
             return
         import subprocess
         import tempfile
@@ -501,10 +501,10 @@ class ImmediatelyLaw(QObject):
                              creationflags=detached, close_fds=True)
         except OSError as e:
             QMessageBox.warning(self.search or None, APP_TITLE,
-                                f"업데이트 시작에 실패했습니다.\n{e}")
+                                f"업더데터 시작에 실패했습니다.\n{e}")
             return
         self.tray.showMessage(APP_TITLE,
-                              f"v{info['version']} 업데이트 적용 후 "
+                              f"v{info['version']} 업더데터 적용 후 "
                               "재시작합니다…",
                               QSystemTrayIcon.Information, 4000)
         QTimer.singleShot(600, lambda: os._exit(0))
@@ -614,7 +614,7 @@ def main():
 
     app = QApplication(sys.argv)
     # Windows 다크 테마여도 앱은 밝은 팔레트를 강제한다
-    # (흰 배경 위 기본 흰 글자 = invisible 방지).
+    # (흰 배경 위 흰 글자 충돌 방지).
     from PySide6.QtGui import QPalette
     app.setStyle("Fusion")
     pal = app.palette()

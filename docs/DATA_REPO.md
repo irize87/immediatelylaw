@@ -16,9 +16,10 @@ HTTPS로 아래 폴더(예: `~/immediatelylaw-mirror`)를 그대로 공개하면
 manifest.json                        ← 앱이 매일 읽는 버전/무결성 정보
 immediatelylaw-<버전>.db.xz          ← 전체 스냅샷(xz, 약 30MB, 최신 1개만 유지)
 delta-<버전>.json.xz                 ← 개정분 델타(최근 30개)
-app-latest.json                      ← 프로그램 자체 업데이트 정보(sha256 포함)
+app-latest.json                      ← 프로그램 자체 업더데터 정보(sha256 포함)
 ImmediatelyLaw-online-<버전>.zip     ← 설치 파일(온라인)
 ImmediatelyLaw-offline-<버전>.zip    ← 설치 파일(오프라인, 데이터 동봉)
+ImmediatelyLaw-{online,offline}-latest.zip ← 고정 별칭(README 링크용, 항상 최신)
 index.html · capitol.jpg …           ← 랜딩 페이지
 ```
 
@@ -39,7 +40,7 @@ CRON_TZ=Asia/Seoul
 ```
 
 `tools/daily_update_server.sh`는 순서대로:
-1. `tools.publisher update` — 개정·폐지 법령만 수집(바뀐 게 없으면 버전만 갱신)
+1. `tools.publisher update` — 개정·폐지 법령만 수집(바뀐 게 없으면 버전 유지 — 앱 트래픽 0)
 2. `tools.publisher package` — `data/dist/`에 새 스냅샷·델타·manifest 생성
 3. 전체 스냅샷은 최신 1개만 유지한 뒤, **배포 서버 폴더로 복사** — 그것으로 발행 끝
 
@@ -78,7 +79,7 @@ python -m tools.make_release --server ubuntu@<발행서버>
 
 `app-latest.json`(버전·크기·SHA-256)과 설치 zip 2종을 생성해 발행 서버의
 `data/dist/`로 scp하고, 이후 배포 서버 폴더 동기화로 사용자 앱에 반영됩니다.
-앱의 자동 업데이트는 이 `app-latest.json`만 사용하며 SHA-256 검증을 요구합니다.
+앱의 자동 업더데터는 이 `app-latest.json`만 사용하며 SHA-256 검증을 요구합니다.
 
 ## 오프라인 배포본 만들기
 
@@ -103,4 +104,4 @@ curl -k https://<배포서버>/manifest.json   # 발행된 판 확인
 
 - `미완/실패 표시`가 0이 아니면 `python -m tools.publisher build`로 실패분 재시도.
 - 앱이 정상 반영됐으려면 해당 PC 앱에서 8시간 대기하거나, 설정 › 데이터 ›
-  [업데이트]를 눌러 "이미 최신" 문구를 확인합니다.
+  [업더데터]를 눌러 "이미 최신" 문구를 확인합니다.

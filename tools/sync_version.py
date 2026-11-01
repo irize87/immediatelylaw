@@ -2,7 +2,7 @@
 """버전 단일 정본 동기화 도구.
 
 정본은 immediatelylaw/__init__.py의 __version__ 하나다. 앱 코드(트레이 메뉴·
-설정창·업데이터)와 릴리스 산출물(app-latest.json·zip 이름)은 모두 여기서
+설정창·업더데터)와 릴리스 산출물(app-latest.json·zip 이름)은 모두 여기서
 파생되지만, 랜딩 페이지의 정적 폴백 링크(web/index.html의 zip href 2곳)와
 README 버전 배지는 문서 상에 리터럴로 존재해 수동 유지가 필요했다.
 

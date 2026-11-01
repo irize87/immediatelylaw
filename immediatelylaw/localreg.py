@@ -25,7 +25,7 @@ REG_DIR = os.path.join(DATA_DIR, "regulations")
 
 ART_HEAD = re.compile(r"^\s*(제\s*[0-9]+(?:의[0-9]+)?\s*조(?:\s*\([^)\n]{1,40}\))?)\s*")
 NAME_HINT = re.compile(r"(조례|규칙|규정|훈령|예규|고시|지침|요강)$")
-# 조례명 searches 시 건너뛰는 헤더/각주성 라인 (PDF 앞부분 잡음)
+# 조례명 검색 시 건너뛰는 헤더/각주성 라인 (PDF 앞부분 잡음)
 NOISE = re.compile(r"법제처|국가법령정보센터|법령번호|검색결과|페이지"
                    r"|^\d+\s*$|^http|대한민국 법령|^@")
 STOP = re.compile(r"^\s*(부\s*칙|별\s*표|붙\s*임)")

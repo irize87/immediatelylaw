@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """릴리스 패키징: dist/ImmediatelyLaw를 두 가지 zip으로 만들고 앱 자체
-업데이트용 app-latest.json(sha256 포함)을 생성한다.
+업더데터용 app-latest.json(sha256 포함)을 생성한다.
 
 사용:
   pyinstaller ImmediatelyLaw.spec             # 먼저 빌드

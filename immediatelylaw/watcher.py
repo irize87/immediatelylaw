@@ -73,7 +73,7 @@ class ClipboardWatcher(QObject):
         QTimer.singleShot(RETRY_MS[min(idx, len(RETRY_MS) - 1)],
                           lambda: self._try_read(gen, first=False))
 
-    # ---------- 읽기/판석 ----------
+    # ---------- 읽기/판독 ----------
     def _try_read(self, gen: int, first: bool):
         if gen != self._gen and not first:
             return                     # 구세대 재시도는 조용히 폐기

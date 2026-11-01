@@ -31,15 +31,11 @@ def analyze(path, label):
             order.append(rid)
         d[phase] = int(t)
 
-    def spans(phase_a, phase_b, only_after_start=True):
+    def spans(phase_a, phase_b):
         vals = []
-        t0 = min((e.get("clipboard_event", 0) for e in events.values()),
-                 default=0)
         for rid in order:
             e = events[rid]
             if phase_a in e and phase_b in e and e[phase_b] >= e[phase_a]:
-                if only_after_start and "read_start" not in e:
-                    pass
                 vals.append((e[phase_b] - e[phase_a]) / 1e6)
         vals.sort()
         return vals
@@ -64,11 +60,7 @@ def analyze(path, label):
               f"중앙={statistics.median(v):6.1f}ms "
               f"p95={pctl(v, 0.95):6.1f}ms p99={pctl(v, 0.99):6.1f}ms")
     # 구간 분해(표시요청→첫페인트 = 렌더/레이아웃 비용)
-    v = sorted(spans("show_requested", "first_paint") if False else [
-        (events[r]["first_paint"] - events[r]["show_requested"]) / 1e6
-        for r in order
-        if "show_requested" in events[r] and "first_paint" in events[r]
-        and events[r]["first_paint"] >= events[r]["show_requested"]])
+    v = spans("show_requested", "first_paint")   # spans는 정렬된 값 목록을 반환
     if v:
         print(f"  {'표시요청→페인트':14s}: n={len(v):3d} "
               f"중앙={statistics.median(v):6.1f}ms "

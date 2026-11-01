@@ -45,7 +45,7 @@ print("[BEFORE] Q2 계획:", plan(conn, Q2, ("형법",)))
 bench(conn, "인덱스 추가 전")
 conn.close()
 
-# 앱 부트와 동일 경로: _SCHEMA 실행(식 인덱스 2종 생성) — 부트 비용도 재는 다
+# 앱 부트와 동일 경로: _SCHEMA 실행(식 인덱스 2종 생성) — 부트 비용도 함께 잰다
 conn = sqlite3.connect(COPY)
 t0 = time.perf_counter()
 conn.executescript(_SCHEMA)

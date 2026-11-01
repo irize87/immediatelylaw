@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""조문 카드 스냅숏: 화면에 띄우지 않고 라이트/다크 PNG로 렌더해 준다.
+"""조문 카드 스냅샷: 화면에 띄우지 않고 라이트/다크 PNG로 렌더해 준다.
 
 UI 개정 후 눈으로 확인하는 용도. 실행:  python tools/card_snapshot.py
 출력:  %TEMP%\\il_measure\\card2_light.png / card2_dark.png

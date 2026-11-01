@@ -7,7 +7,7 @@
 
 사용:
   python -m tools.push_dist --repo https://github.com/<계정>/immediatelylaw-data.git \
-      [--also gitlab] [--also 차저remote]
+      [--also gitlab] [--also 다른 원격]
 저장소엔 미리 빈 브랜치만 있으면 되고, 없으면 이 도구가 만든다.
 """
 import argparse

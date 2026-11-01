@@ -201,7 +201,7 @@ class SearchWindow(QWidget):
                 + ("  [자치]" if res.get("source") == "local-reg" else ""))
 
     def _push_history(self, res):
-        """본 조문 목록은 열람 이력. 동일 항목은 중복 추가하지 않고 맨 위로 이동."""
+        """이 목록은 열람 이력. 동일 항목은 중복 추가하지 않고 맨 위로 이동."""
         it = None
         for i in range(self.list.count()):
             cand = self.list.item(i)

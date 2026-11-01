@@ -12,6 +12,8 @@ import defusedxml.ElementTree as ET  # 세이프티 XML(XXE/폭주형 방어)
 
 import requests
 
+from . import __version__
+
 BASE = "https://www.law.go.kr/DRF"
 
 
@@ -25,7 +27,7 @@ class LawApi:
         self.s = requests.Session()
         self.s.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                          "JisiloLaw/0.1"})
+                          f"ImmediatelyLaw/{__version__}"})
         self._min_interval = min_interval
         self._last = 0.0
         self._lock = threading.Lock()
@@ -135,7 +137,7 @@ class LawApi:
         try:
             root = ET.fromstring(xml_text)
         except ET.ParseError as e:
-            raise LawApiError(f"전문 XML 파싱 실행: {e}")
+            raise LawApiError(f"전문 XML 파싱 실패: {e}")
 
         def txt(el, tag):
             t = el.find(tag)

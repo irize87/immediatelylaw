@@ -111,7 +111,7 @@ def resolve(d, hint: str, art: str, api=None, hints=None):
 def verify(d, api, res: dict):
     """표시된 조문이 최신인지 확인.
     반환: ('current'|'check'|'offline', 설명)
-    설명 문구는 카드 하단 '최신화 일자' 표시로 쓰인다."""
+    설명 문구는 배지 툴팁의 검증 상태 안내로 쓰인다."""
     def _mdd(ver):
         return f"{ver[4:6]}.{ver[6:8]}" if len(ver) >= 8 else ver
 

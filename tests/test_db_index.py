@@ -68,7 +68,7 @@ def test_short_exact_match_plan_uses_index(tmp_path):
 
 
 def test_reload_from_file_reapplies_schema(tmp_path, monkeypatch):
-    """업데이터로 내려받은 DB가 구(舊)구조여도 재접속 시 인덱스를 보장한다."""
+    """업더데터로 내려받은 DB가 옛 구조여도 재접속 시 인덱스를 보장한다."""
     live = tmp_path / "live.db"
     fresh = tmp_path / "fresh.db"
     monkeypatch.setattr(dbmod, "DB_PATH", str(live))
