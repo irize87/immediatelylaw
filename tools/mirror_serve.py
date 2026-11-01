@@ -22,7 +22,9 @@ import threading
 import urllib.parse
 
 
-SAFE = re.compile(r"^[\w.\-]+\.(json|xz|zip|txt|html|png|jpg|jpeg|svg|ico|mp4)$")
+# 확장자 화이트리스트 + 단일 서브디렉터리(fonts/ 등 1단계)만 허용(다단계 경로 불허).
+SAFE = re.compile(r"^(?:[\w.\-]+/)?[\w.\-]+\."
+                  r"(json|xz|zip|txt|html|png|jpg|jpeg|svg|ico|mp4|woff2|woff)$")
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -57,6 +59,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def guess_type(self, path):
         if path.endswith(".json.xz") or path.endswith(".xz"):
             return "application/x-xz"
+        if path.endswith(".woff2"):          # 서버 Python 버전 무관 고정 MIME
+            return "font/woff2"              # (mimetypes 테이블은 버전에 따라 다름)
+        if path.endswith(".woff"):
+            return "font/woff"
         return super().guess_type(path)
 
     def send_head(self):
@@ -85,7 +91,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "max-age=86400")
         elif p.endswith(".html") or p in ("", "/"):
             self.send_header("Cache-Control", "no-cache")
-        elif p.endswith((".png", ".jpg", ".jpeg", ".mp4", ".ico", ".svg")):
+        elif p.endswith((".png", ".jpg", ".jpeg", ".mp4", ".ico", ".svg",
+                         ".woff2", ".woff")):
             self.send_header("Cache-Control", "max-age=86400")
         self.send_header("Connection", "close")
         self.send_header("X-Content-Type-Options", "nosniff")
