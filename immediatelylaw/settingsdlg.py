@@ -136,12 +136,12 @@ class SettingsDialog(QDialog):
         row.addWidget(QLabel("배포 주소"))
         row.addWidget(self.ed_url, 1)
         lay.addLayout(row)
-        self.btn_upd = QPushButton("지금 업데이읕")
+        self.btn_upd = QPushButton("지금 업데이트")
         self.btn_upd.clicked.connect(self._req_update)
         lay.addWidget(self.btn_upd)
         lay.addStretch(1)
         tip = QLabel("· 조문 열람은 항상 이 PC의 로컬 데이터로 동작합니다(오프라인 OK).\n"
-                     "· 업데이읕는 8시간마다 자동이며, 아래 버튼으로 수동 실행도 됩니다.")
+                     "· 업데이트는 8시간마다 자동이며, 아래 버튼으로 수동 실행도 됩니다.")
         tip.setStyleSheet("color:#6b7280;")
         lay.addWidget(tip)
         return w
@@ -453,7 +453,7 @@ class SettingsDialog(QDialog):
         self.chk_pause.setChecked(bool(self.cfg["clipboard_paused"]))
         self.chk_auto = QCheckBox("Windows 시작 시 자동으로 실행")
         self.chk_auto.setChecked(get_autostart())
-        self.chk_updchk = QCheckBox("새 버전 알림(자동 업데이읕 확인)")
+        self.chk_updchk = QCheckBox("새 버전 알림(자동 업데이트 확인)")
         self.chk_updchk.setChecked(bool(self.cfg.get("update_check", True)))
         self.btn_updnow = QPushButton("지금 새 버전 확인")
         self.btn_updnow.clicked.connect(self.app_update_requested.emit)

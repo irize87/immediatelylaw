@@ -352,17 +352,17 @@ class ImmediatelyLaw(QObject):
         elif not auto:
             QMessageBox.information(self.search or None, APP_TITLE, msg)
 
-    # ---------- 프로그램 새 버전(자동 업데이읕) ----------
+    # ---------- 프로그램 새 버전(자동 업데이트) ----------
     def _check_app_update(self, auto=True):
         if buildflag.IS_STORE:
-            # MSIX 버전은 스토어가 버전을 관리한다. 자기교체 업데이읕는
+            # MSIX 버전은 스토어가 버전을 관리한다. 자기교체 업데이트는
             # 스토어 정책 위반이자 불필요 — 여기가 모든 진입로의 관문.
             if not auto:
                 QMessageBox.information(
                     self.search or None, APP_TITLE,
                     "스토어 버전은 새 버전 확인과 설치를 마이크로소프트 스토어가"
-                    " 맡습니다.\n\n스토어를 실행해 업데이읕가 있는지 확인하거나,"
-                    " Windows 설정 → 앱 → 앱 및 기능 → 즉시로 → 업데이읕에서"
+                    " 맡습니다.\n\n스토어를 실행해 업데이트가 있는지 확인하거나,"
+                    " Windows 설정 → 앱 → 앱 및 기능 → 즉시로 → 업데이트에서"
                     " 수동 동기화할 수 있습니다.")
             return
         if auto and not self.cfg.get("update_check", True):
@@ -395,11 +395,11 @@ class ImmediatelyLaw(QObject):
         box = QMessageBox(QMessageBox.Information, APP_TITLE,
                           f"새 버전 v{ver}이(가) 나왔습니다 "
                           f"(현재 v{__version__}).\n\n"
-                          "지금 자동 업데이읕할까요?\n"
+                          "지금 자동 업데이트할까요?\n"
                           "다운로드 후 설치가 끝나면 프로그램이 자동으로 "
                           "재시작됩니다.",
                           QMessageBox.NoButton, None)
-        b_yes = box.addButton("자동 업데이읕", QMessageBox.AcceptRole)
+        b_yes = box.addButton("자동 업데이트", QMessageBox.AcceptRole)
         b_no = box.addButton("나중에", QMessageBox.RejectRole)
         b_skip = box.addButton("이 버전은 알림 끄기", QMessageBox.DestructiveRole) \
             if auto else None
@@ -437,7 +437,7 @@ class ImmediatelyLaw(QObject):
         w.finished.connect(lambda: self._workers.remove(w)
                            if w in self._workers else None)
         w.finished.connect(lambda: setattr(self, "_dl", None))
-        dlg = QProgressDialog(f"v{info['version']} 업데이읕 준비 중…",
+        dlg = QProgressDialog(f"v{info['version']} 업데이트 준비 중…",
                               "취소", 0, 100, None)
         dlg.setWindowTitle(APP_TITLE)
         dlg.setWindowModality(Qt.WindowModal)
@@ -463,7 +463,7 @@ class ImmediatelyLaw(QObject):
             self._dlprog.reset()
             self._dlprog = None
         QMessageBox.warning(self.search or None, APP_TITLE,
-                            f"업데이읕 준비에 실패했습니다.\n{msg}")
+                            f"업데이트 준비에 실패했습니다.\n{msg}")
 
     def _apply_update(self, src_dir: str, info: dict):
         """지금 프로세스를 종료하고, 교체 배치(update.bat)로 파일을 덮어쓴 뒤
@@ -474,7 +474,7 @@ class ImmediatelyLaw(QObject):
         if not getattr(sys, "frozen", False):
             QMessageBox.information(
                 self.search or None, APP_TITLE,
-                "개발 환경에서는 자동 업데이읕를 적용할 수 없습니다.\n"
+                "개발 환경에서는 자동 업데이트를 적용할 수 없습니다.\n"
                 "README의 공식 다운로드 링크에서 설치 파일을 받아 압축을 풀어 주세요.")
             return
         import subprocess
@@ -514,10 +514,10 @@ class ImmediatelyLaw(QObject):
                              creationflags=detached, close_fds=True)
         except OSError as e:
             QMessageBox.warning(self.search or None, APP_TITLE,
-                                f"업데이읕 시작에 실패했습니다.\n{e}")
+                                f"업데이트 시작에 실패했습니다.\n{e}")
             return
         self.tray.showMessage(APP_TITLE,
-                              f"v{info['version']} 업데이읕 적용 후 "
+                              f"v{info['version']} 업데이트 적용 후 "
                               "재시작합니다…",
                               QSystemTrayIcon.Information, 4000)
         QTimer.singleShot(600, lambda: os._exit(0))
