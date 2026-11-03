@@ -33,3 +33,10 @@ out/
 
 # 루트 아이콘 시안: 사용자 지시로 커밋 금지(assets/icon.png는 추적 유지)
 /icon.png
+
+# 사용자 지시(2026-11-03): 스토어 관련 자료는 저장소에 올리지 않는다
+# (업무자료는 저장소 바깥 Desktop/즉시로-store-private/ 로 이관)
+storekit/
+docs/store/
+tools/make_msix.py
+tools/make_store_screens.py
