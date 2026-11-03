@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개인정보 처리방침 — 즉시로 (ImmediatelyLaw)</title>
+<style>
+:root{--fg:#1a1f26;--mut:#6b7280;--line:#e5e7eb;--bg:#fff;--soft:#f6f7f9}
+@media(prefers-color-scheme:dark){:root{--fg:#e7eaf0;--mut:#9aa3b2;--line:#2b313b;--bg:#15181d;--soft:#1c2027}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+ font-family:Pretendard,"Pretendard Variable",Malgun Gothic,system-ui,sans-serif;
+ line-height:1.75}
+.wrap{max-width:760px;margin:0 auto;padding:48px 20px 80px}
+h1{font-size:26px;letter-spacing:-.02em;margin:0 0 4px}
+.sub{color:var(--mut);font-size:14px;margin-bottom:36px}
+h2{font-size:17px;margin:34px 0 10px;letter-spacing:-.01em}
+p,li{font-size:15px}
+ul{padding-left:22px;margin:6px 0}
+.card{background:var(--soft);border:1px solid var(--line);border-radius:10px;
+ padding:14px 18px;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft);font-weight:600}
+code{background:var(--soft);border:1px solid var(--line);border-radius:6px;
+ padding:1px 6px;font-size:13px}
+a{color:inherit}
+.top{font-size:13px;margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<p class="top"><a href="/">← 즉시로 홈페이지</a></p>
+<h1>개인정보 처리방침</h1>
+<p class="sub">즉시로 (ImmediatelyLaw) · 시행일 2026년 11월 3일</p>
+
+<h2>한 줄 요약</h2>
+<div class="card"><strong>즉시로 수집하는 개인정보는 없습니다.</strong>
+이 프로그램은 문서에서 복사한 텍스트를 사용자가 쓰는 PC 안에서만 처리해 법령 조문을 찾아주며,
+가입·계정·광고·추적·분석 도구를 사용하지 않습니다.</div>
+
+<h2>제1조 처리하는 정보의 범위</h2>
+<p>개인정보(사용자 이름, 이메일, 전화번호, 위치, 이용 기록 수집 등)를
+수집·보관·전송하거나 제3자와 공유하지 않습니다.</p>
+<ul>
+<li><strong>클립보드 텍스트</strong> — 사용자가 복사(Ctrl+C)한 순간 조문을 찾기 위해
+메모리에서 일시적으로만 처리합니다. 클립보드 내용 그 자체를 파일로 남기거나
+서버로 보내지 않습니다.</li>
+<li><strong>조문 열람 기록</strong> — 조회 창에 보이는 최근 열람 목록이 이 PC의
+로컬 데이터베이스에만 저장되며 외부로 전송되지 않습니다.</li>
+</ul>
+
+<h2>제2조 네트워크 통신의 전부</h2>
+<p>이 앱이 인터넷과 통신하는 경우는 아래 세 가지뿐이며, 어느 것에도
+개인 식별 정보는 포함되지 않습니다.</p>
+<table>
+<tr><th>목적</th><th>받는 곳</th><th>전송되는 것</th></tr>
+<tr><td>법령 데이터 다운로드·갱신, 설치 파일</td><td>즉시로 공식 배포 서버</td><td>파일 요청 외 없음</td></tr>
+<tr><td>프로그램 새 버전 확인 (8시간마다)</td><td>즉시로 공식 배포 서버</td><td>설치 버전 번호가 적힌 공개 파일(app-latest.json)의 요청</td></tr>
+<tr><td>조문 "현행 일치" 실시간 확인 기능 (사용자가 눌릴 때만)</td><td>국가법령정보센터(법제처) 공개 API</td><td>확인 대상으로 선택한 법령명·조 번호 — 이미 공개된 법령 정보</td></tr>
+</table>
+
+<h2>제3조 이 PC에 저장되는 것과 삭제 방법</h2>
+<ul>
+<li>설정 파일과 법령 데이터베이스, 열람 목록은
+<code>%APPDATA%\immediatelylaw</code> 폴더에 저장됩니다.</li>
+<li>삭제: 앱 종료 후 해당 폴더를 지우면 이 PC의 모든 즉시로 데이터가 사라집니다.
+이 폴더에는 문서 내용이나 개인 정보가 저장되지 않습니다.</li>
+</ul>
+
+<h2>제4조 관리자·연락처</h2>
+<p>배포 서버와 본 프로그램은 아래 연락처의 개발자가 직접 운영합니다.
+개인정보 관련 문의, 데이터 처리 이의는 이메일로 접수해 주십시오.</p>
+<ul><li>이메일: <a href="mailto:irize@seocho.go.kr">irize@seocho.go.kr</a></li></ul>
+
+<h2>제5조 마이크로소프트 스토어 판매 버전</h2>
+<p>스토어에 신고하는 데이터 수집 유형은 "없음(0종)"입니다. 스토어 버전도
+위와 동일한 방식으로 동작하며, 프로그램 자체 업데프트는 마이크로소프트 스토어가
+담당하고 법령 데이터 갱신만 제2조의 배포 서버를 사용합니다.</p>
+
+<h2>제6조 방침 변경</h2>
+<p>이 방침은 앱에 새로운 네트워크 기능이 추가될 때만 개정하며, 개정 시
+홈페이지(https://immediatelylaw.kro.kr/privacy.html)에 시행일을 새로 적습니다.</p>
+
+</div>
+</body>
+</html>

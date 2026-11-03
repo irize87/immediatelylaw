@@ -21,7 +21,7 @@ from .overlay import OverlayCard
 from .searchwin import SearchWindow
 from .settingsdlg import SettingsDialog
 from .watcher import ClipboardWatcher, note_self_copy
-from . import workers
+from . import buildflag, workers
 from .workers import (AppDownloadWorker, AppUpdateWorker, UpdaterWorker,
                       VerifyWorker)
 
@@ -127,12 +127,14 @@ class ImmediatelyLaw(QObject):
     def _boot(self):
         # 시작 프로그램 기본 켬: 설정에서 꺼둔 적(autostart=False 저장)이
         # 없으면 Run 키를 항상 유지하고, 실행 경로가 바뀌었으면 갱신한다.
+        # (스토어 버전 제외: MSIX 경로로 쓴 Run 키는 갱신 때마다 깨진다)
         try:
-            from .settingsdlg import (_autostart_command, get_autostart_command,
-                                      set_autostart)
-            if self.cfg["autostart"] and \
-                    get_autostart_command() != _autostart_command():
-                set_autostart(True)
+            if not buildflag.IS_STORE:
+                from .settingsdlg import (_autostart_command,
+                                          get_autostart_command, set_autostart)
+                if self.cfg["autostart"] and \
+                        get_autostart_command() != _autostart_command():
+                    set_autostart(True)
         except OSError:
             pass
         try:
@@ -350,8 +352,19 @@ class ImmediatelyLaw(QObject):
         elif not auto:
             QMessageBox.information(self.search or None, APP_TITLE, msg)
 
-    # ---------- 프로그램 새 버전(자동 업더데터) ----------
+    # ---------- 프로그램 새 버전(자동 업데프트) ----------
     def _check_app_update(self, auto=True):
+        if buildflag.IS_STORE:
+            # MSIX 버전은 스토어가 버전을 관리한다. 자기교체 업데프트는
+            # 스토어 정책 위반이자 불필요 — 여기가 모든 진입로의 관문.
+            if not auto:
+                QMessageBox.information(
+                    self.search or None, APP_TITLE,
+                    "스토어 버전은 새 버전 확인과 설치를 마이크로소프트 스토어가"
+                    " 맡습니다.\n\n스토어를 실행해 업데프트가 있는지 확인하거나,"
+                    " Windows 설정 → 앱 → 앱 및 기능 → 즉시로 → 업데프트에서"
+                    " 수동 동기화할 수 있습니다.")
+            return
         if auto and not self.cfg.get("update_check", True):
             return
         if self._app_upd is not None or self._dl is not None:
@@ -382,11 +395,11 @@ class ImmediatelyLaw(QObject):
         box = QMessageBox(QMessageBox.Information, APP_TITLE,
                           f"새 버전 v{ver}이(가) 나왔습니다 "
                           f"(현재 v{__version__}).\n\n"
-                          "지금 자동 업더데터할까요?\n"
+                          "지금 자동 업데프트할까요?\n"
                           "다운로드 후 설치가 끝나면 프로그램이 자동으로 "
                           "재시작됩니다.",
                           QMessageBox.NoButton, None)
-        b_yes = box.addButton("자동 업더데터", QMessageBox.AcceptRole)
+        b_yes = box.addButton("자동 업데프트", QMessageBox.AcceptRole)
         b_no = box.addButton("나중에", QMessageBox.RejectRole)
         b_skip = box.addButton("이 버전은 알림 끄기", QMessageBox.DestructiveRole) \
             if auto else None
@@ -424,7 +437,7 @@ class ImmediatelyLaw(QObject):
         w.finished.connect(lambda: self._workers.remove(w)
                            if w in self._workers else None)
         w.finished.connect(lambda: setattr(self, "_dl", None))
-        dlg = QProgressDialog(f"v{info['version']} 업더데터 준비 중…",
+        dlg = QProgressDialog(f"v{info['version']} 업데프트 준비 중…",
                               "취소", 0, 100, None)
         dlg.setWindowTitle(APP_TITLE)
         dlg.setWindowModality(Qt.WindowModal)
@@ -450,7 +463,7 @@ class ImmediatelyLaw(QObject):
             self._dlprog.reset()
             self._dlprog = None
         QMessageBox.warning(self.search or None, APP_TITLE,
-                            f"업더데터 준비에 실패했습니다.\n{msg}")
+                            f"업데프트 준비에 실패했습니다.\n{msg}")
 
     def _apply_update(self, src_dir: str, info: dict):
         """지금 프로세스를 종료하고, 교체 배치(update.bat)로 파일을 덮어쓴 뒤
@@ -461,7 +474,7 @@ class ImmediatelyLaw(QObject):
         if not getattr(sys, "frozen", False):
             QMessageBox.information(
                 self.search or None, APP_TITLE,
-                "개발 환경에서는 자동 업더데터를 적용할 수 없습니다.\n"
+                "개발 환경에서는 자동 업데프트를 적용할 수 없습니다.\n"
                 "README의 공식 다운로드 링크에서 설치 파일을 받아 압축을 풀어 주세요.")
             return
         import subprocess
@@ -501,10 +514,10 @@ class ImmediatelyLaw(QObject):
                              creationflags=detached, close_fds=True)
         except OSError as e:
             QMessageBox.warning(self.search or None, APP_TITLE,
-                                f"업더데터 시작에 실패했습니다.\n{e}")
+                                f"업데프트 시작에 실패했습니다.\n{e}")
             return
         self.tray.showMessage(APP_TITLE,
-                              f"v{info['version']} 업더데터 적용 후 "
+                              f"v{info['version']} 업데프트 적용 후 "
                               "재시작합니다…",
                               QSystemTrayIcon.Information, 4000)
         QTimer.singleShot(600, lambda: os._exit(0))

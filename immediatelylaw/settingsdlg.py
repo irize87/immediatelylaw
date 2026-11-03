@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
                                QTableWidgetItem, QTextEdit, QVBoxLayout,
                                QWidget)
 
-from . import __version__, localreg, theme
+from . import __version__, buildflag, localreg, theme
 from .config import clean_base_url
 from .db import norm_name
 
@@ -136,12 +136,12 @@ class SettingsDialog(QDialog):
         row.addWidget(QLabel("배포 주소"))
         row.addWidget(self.ed_url, 1)
         lay.addLayout(row)
-        self.btn_upd = QPushButton("지금 업더데터")
+        self.btn_upd = QPushButton("지금 업데프트")
         self.btn_upd.clicked.connect(self._req_update)
         lay.addWidget(self.btn_upd)
         lay.addStretch(1)
         tip = QLabel("· 조문 열람은 항상 이 PC의 로컬 데이터로 동작합니다(오프라인 OK).\n"
-                     "· 업더데터는 8시간마다 자동이며, 아래 버튼으로 수동 실행도 됩니다.")
+                     "· 업데프트는 8시간마다 자동이며, 아래 버튼으로 수동 실행도 됩니다.")
         tip.setStyleSheet("color:#6b7280;")
         lay.addWidget(tip)
         return w
@@ -453,7 +453,7 @@ class SettingsDialog(QDialog):
         self.chk_pause.setChecked(bool(self.cfg["clipboard_paused"]))
         self.chk_auto = QCheckBox("Windows 시작 시 자동으로 실행")
         self.chk_auto.setChecked(get_autostart())
-        self.chk_updchk = QCheckBox("새 버전 알림(자동 업더데터 확인)")
+        self.chk_updchk = QCheckBox("새 버전 알림(자동 업데프트 확인)")
         self.chk_updchk.setChecked(bool(self.cfg.get("update_check", True)))
         self.btn_updnow = QPushButton("지금 새 버전 확인")
         self.btn_updnow.clicked.connect(self.app_update_requested.emit)
@@ -462,6 +462,11 @@ class SettingsDialog(QDialog):
         lay.addWidget(self.chk_auto)
         lay.addWidget(self.chk_updchk)
         lay.addWidget(self.btn_updnow)
+        if buildflag.IS_STORE:
+            # 스토어 버전: 버전 확인·설치는 스토어 소관이고 MSIX에서 Run 키는
+            # 의미 없다. 저장·적용 코드 쪽도 같은 조건으로 건너뛴다.
+            for w in (self.chk_auto, self.chk_updchk, self.btn_updnow):
+                w.setVisible(False)
         lay.addStretch(1)
         return w
 
@@ -542,7 +547,8 @@ class SettingsDialog(QDialog):
         self.cfg["autostart"] = self.chk_auto.isChecked()
         self.cfg["update_check"] = self.chk_updchk.isChecked()
         self.cfg.save()
-        if self.chk_auto.isChecked() != get_autostart():
+        if (not buildflag.IS_STORE
+                and self.chk_auto.isChecked() != get_autostart()):
             try:
                 set_autostart(self.chk_auto.isChecked())
             except OSError:
