@@ -500,8 +500,8 @@ class SettingsDialog(QDialog):
             "<td>" + a("mailto:irize@seocho.go.kr", "irize@seocho.go.kr")
             + "<br>02-2155-6089</td></tr>"
             f"<tr><td style='{td}'>소스 코드</td><td>"
-            + a("https://github.com/nazgregory/ImmediatelyLaw",
-                "github.com/nazgregory/ImmediatelyLaw") + " (MIT)</td></tr>"
+            + a("https://github.com/irize87/immediatelylaw",
+                "github.com/irize87/immediatelylaw") + " (MIT)</td></tr>"
             f"<tr><td style='{td}'>법령 데이터</td><td>"
             + "국가법령정보센터(법제처) 개방 데이터</td></tr>"
             "</table>")
