@@ -7,7 +7,7 @@
 # 필요 조건:
 #   - $APP/.env: export IMMEDIATELYLAW_OC=<OC키>   (chmod 600)
 #   - MIRROR_DIR: 배포 서버 디렉터리(HTTPS 서비스가 이 폴더를 제공)
-#   - venv: .venv (requests 설치됨) — 없거나 깨지면 아래에서 자동 재생성
+#   - venv: .venv (requirements-server.txt 설치됨) — 없거나 깨지면 자동 재생성
 # 발행 대상은 배포 서버 디렉터리 하나다. GitHub는 소스 코드 공개 전용이며
 # 대용량 데이터는 올리지 않는다(2026-10-, 과도한 파일호스팅으로 분류될 수 있음).
 set -e
@@ -17,12 +17,13 @@ cd "$APP"
 
 # 실행 환경 자가치유: .venv가 삭제/파손되면 그 자리에서 다시 만든다(2026-11-03
 # 사고 — venv의 bin/가 사라져 cron 실행이 다음 날부터 실패할 상태가 됐다).
-if ! .venv/bin/python -c "import requests" >/dev/null 2>&1; then
-    echo "!! $(date -Is) .venv 사용할 수 없음 — 재생성 시작"
+# 런타임 실제 의존성은 requests+defusedxml 두 개(publisher 임포트 그래프 실측).
+if ! .venv/bin/python -c "import tools.publisher" >/dev/null 2>&1; then
+    echo "!! $(date -Is) 실행 환경(publisher 임포트) 불량 — venv 재생성 시작"
     rm -rf .venv
     python3 -m venv .venv
-    .venv/bin/pip install -q --disable-pip-version-check requests
-    .venv/bin/python -c "import requests" || { echo "!! venv 재생성 실패"; exit 1; }
+    .venv/bin/pip install -q --disable-pip-version-check -r requirements-server.txt
+    .venv/bin/python -c "import tools.publisher" || { echo "!! venv 재생성 실패"; exit 1; }
     echo "== $(date -Is) .venv 재생성 완료"
 fi
 

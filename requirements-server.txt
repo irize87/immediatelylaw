@@ -1,0 +1,5 @@
+# 발행 서버(cron) 런타임 의존성 — tools/publisher 임포트 그래프 실측(2026-11-03).
+# requests: OC API 호출 / defusedxml: lawapi의 보안 XML 파싱.
+# venv 재생성 시 daily_update_server.sh가 이 파일을 쓴다.
+requests
+defusedxml
