@@ -1,5 +1,10 @@
-# 발행 서버(cron) 런타임 의존성 — tools/publisher 임포트 그래프 실측(2026-11-03).
-# requests: OC API 호출 / defusedxml: lawapi의 보안 XML 파싱.
-# venv 재생성 시 daily_update_server.sh가 이 파일을 쓴다.
-requests
-defusedxml
+# 발행 서버(cron) 전용 런타임 의존성 — 버전 고정(2026-11-03 실측본, Python 3.12).
+# 직접 사용: requests(OC API), defusedxml(lawapi 보안 XML 파싱).
+# 아래는 requests의 전이 의존성까지 고정한 것으로, 재현 가능한 venv 재생성을
+# 위해 전부 ==로 잠근다. 갱신은 수동으로만(자동 롤링 금지).
+certifi==2026.10.23
+charset-normalizer==3.5.2
+defusedxml==0.7.1
+idna==3.20
+requests==2.34.2
+urllib3==2.8.0
