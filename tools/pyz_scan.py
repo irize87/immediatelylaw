@@ -5,7 +5,7 @@ PyInstaller 공식 리더로 읽어 코드포인트 판독한다.
 사용: python -X utf8 tools/pyz_scan.py [path/to/ImmediatelyLaw.exe]
 정본 '업데프트'(EOB-DE-PEU-TEU) 접두가 아닌 '업' 시작 토큰 전부 보고.
 """
-import marshal
+import marshal  # nosemgrep: python.lang.security.audit.marshal.marshal-usage
 import re
 import sys
 import types
@@ -49,7 +49,7 @@ good = 0
 for m in sorted(ours):
     try:
         obj = z.extract(m)
-        co = obj if isinstance(obj, types.CodeType) else marshal.loads(
+        co = obj if isinstance(obj, types.CodeType) else marshal.loads(  # noqa: E501  # nosemgrep: python.lang.security.audit.marshal.marshal-usage
             bytes(obj)[16:])
     except Exception:
         co = None
