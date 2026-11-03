@@ -59,7 +59,7 @@
 
 ### 다운로드 — 항상 최신 버전 (고정 링크)
 
-| 버전 | 설치 파일 (최신 자동 갱신) |
+| 버전 | 파일 (최신 자동 갱신) |
 |---|---|
 | 온라인(앱만) | [ImmediatelyLaw-online.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/downloads/ImmediatelyLaw-online-latest.zip) |
 | 오프라인(앱+데이터) | [ImmediatelyLaw-offline.zip](https://gitlab.aigov.go.kr/irize/immediatelylaw/-/raw/downloads/ImmediatelyLaw-offline-latest.zip) |
