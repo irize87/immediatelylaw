@@ -41,12 +41,14 @@ def _https(url: str) -> str:
 
 
 # ---------- 배포 채널 ----------
-# 배포(데이터·프로그램·앱) 채널의 1순위는 공식 배포 서버(자체서명)다. GitHub는
-# 소스 코드 공개 전용으로만 쓰고 데이터 채널에서는 제외한다(옛 GitHub 데이터
-# 배포는 종료되어 현재 404 — 옛 값 걸러내기는 config.clean_base_url이 담당).
-# 같은 레이아웃(manifest.json / delta-*.json.xz / immediatelylaw-*.db.xz /
+# 배포(데이터·프로그램·앱) 채널의 1순위는 공식 배포 서버(도메인, CA 인증서)다.
+# GitHub는 소스 코드 공개 전용으로만 쓰고 데이터 채널에서는 제외한다(옛 GitHub
+# 데이터 배포는 종료되어 현재 404 — 옛 값 걸러내기는 config.clean_base_url이
+# 담당). 같은 레이아웃(manifest.json / delta-*.json.xz / immediatelylaw-*.db.xz /
 # app-latest.json)을 배포하는 채널을 순서대로 시도한다.
-MIRROR_BASE = "https://152.67.205.216"   # 공식 배포 서버(자체서명, 인증서 고정)
+# 소스 공개 범위 정책: 실제 서버 IP는 코드에 적지 않는다. 도메인은 Let's
+# Encrypt 인증서로 검증되므로 별도 고정 없이 TLS가 성립한다.
+MIRROR_BASE = "https://immediatelylaw.kro.kr"   # 공식 배포 서버(CA 인증서)
 UA = "immediatelylaw-updater"
 
 # 고정(pinning) 채널은 의도적으로 verify=False + 사후 지문 검증 구조라
@@ -55,16 +57,12 @@ UA = "immediatelylaw-updater"
 import urllib3  # noqa: E402
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# 자체서명 배포 서버 인증서 고정: 호스트 → 인증서(DER) sha256.
-# 인증서 재생성 시 서버의 cert_hash.txt 값을 아래 CERT_PINS로 옮겨 갱신한다.
-CERT_PINS = {
-    "152.67.205.216": "590abe364c339a0dcdbe4ccfc82ea16179637768f1f2"
-                      "7caa71cdc11c882d08d8",
-    # 운영자 PC는 테일넷 경로로도 같은 배포 서버에 접근한다(같은 인증서).
-    # 이 주소는 배포 채널 기본값에 없고 사용자가 설정한 경우에만 쓰인다.
-    "100.109.191.50": "590abe364c339a0dcdbe4ccfc82ea16179637768f1f2"
-                      "7caa71cdc11c882d08d8",
-}
+# 배포 서버 인증서 고정: 호스트 → 인증서(DER) sha256. 정책상 소스에는 지문을
+# 두지 않는다(기본 채널이 CA 검증 도메인이어서 고정이 불필요). 특수 채널(예:
+# IP 직접 지정 미러)을 쓸 일이 생기면 배포 시점에 이 사전에 채워 넣는다 —
+# 값이 있는 호스트만 verify=False + 지문 검증 경로로 진행하고, 없으면 평범한
+# CA 검증을 쓴다.
+CERT_PINS: dict[str, str] = {}
 _pin_cache = {}
 
 

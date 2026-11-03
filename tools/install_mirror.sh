@@ -6,7 +6,8 @@ SUDO_USER_HOME="$(getent passwd "${SUDO_USER:-ubuntu}" | cut -d: -f6)"
 APP="${SUDO_USER_HOME}/ImmediatelyLaw"
 ETC=/etc/immediatelylaw-mirror
 DIR="${SUDO_USER_HOME}/immediatelylaw-mirror"
-IP="${IMMEDIATELYLAW_MIRROR_IP:-152.67.205.216}"
+# 미러 IP는 하드코딩하지 않는다(소스 공개 정책). 환경변수로 주거나 첫 IPv4를 쓴다.
+IP="${IMMEDIATELYLAW_MIRROR_IP:-$(hostname -I | cut -d' ' -f1)}"
 
 if [ "$(id -u)" != "0" ]; then echo "root로 실행하세요(sudo)."; exit 1; fi
 

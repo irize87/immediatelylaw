@@ -21,7 +21,7 @@ def test_empty_and_blank_fall_back_to_mirror():
 
 def test_non_https_and_hostless_rejected():
     for bad in ("http://example.com", "ftp://example.com", "https://",
-                "https:///path", "just text", "https:// ", "152.67.205.216"):
+                "https:///path", "just text", "https:// ", "203.0.113.7"):
         assert clean_base_url(bad) == ""
 
 
@@ -33,7 +33,7 @@ def test_legacy_github_data_url_never_survives():
 
 
 def test_valid_urls_normalized():
-    assert clean_base_url("https://152.67.205.216/") == "https://152.67.205.216"
+    assert clean_base_url("https://203.0.113.7/") == "https://203.0.113.7"
     assert clean_base_url("  https://a.example:8443/dist//  ") == \
         "https://a.example:8443/dist"
     # 내부 공백은 제거 후 재평가(붙여쓰면 유효한 주소가 되는 오타 구제).

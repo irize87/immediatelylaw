@@ -5,7 +5,7 @@
 사용:
   pyinstaller ImmediatelyLaw.spec             # 먼저 빌드
   python -m tools.make_release                # out/ 에 산출물 생성
-  python -m tools.make_release --server ubuntu@100.109.191.50
+  python -m tools.make_release --server ubuntu@<발행-서버>
         # 추가로 서버 data/dist 에 scp(다음 cron이 배포 서버로 발행)
 
 산출물:
