@@ -15,6 +15,7 @@ import functools
 import http.server
 import os
 import re
+import signal
 import socket
 import socketserver
 import ssl
@@ -149,6 +150,25 @@ class Server(socketserver.ThreadingTCPServer):
             pass
 
 
+def configure_sni(default_context, domain, cert_path, key_path):
+    state = {}
+    domain = domain.lower().rstrip(".")
+
+    def reload_certificate():
+        replacement = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        replacement.minimum_version = ssl.TLSVersion.TLSv1_2
+        replacement.load_cert_chain(cert_path, key_path)
+        state["context"] = replacement
+
+    def select_certificate(connection, server_name, initial_context):
+        if server_name and server_name.lower().rstrip(".") == domain:
+            connection.context = state["context"]
+
+    reload_certificate()
+    default_context.set_servername_callback(select_certificate)
+    return reload_certificate
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", required=True)
@@ -160,7 +180,14 @@ def main():
     ap.add_argument("--handshake-timeout", type=float, default=5)
     ap.add_argument("--header-timeout", type=float, default=10)
     ap.add_argument("--io-timeout", type=float, default=30)
+    ap.add_argument("--sni-domain")
+    ap.add_argument("--sni-cert")
+    ap.add_argument("--sni-key")
     args = ap.parse_args()
+    if any((args.sni_domain, args.sni_cert, args.sni_key)) and not all(
+        (args.sni_domain, args.sni_cert, args.sni_key)
+    ):
+        ap.error("--sni-domain, --sni-cert and --sni-key must be set together")
     if args.max_connections < 1 or min(
         args.handshake_timeout, args.header_timeout, args.io_timeout
     ) <= 0:
@@ -168,6 +195,19 @@ def main():
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(args.cert, args.key)
+    if args.sni_domain:
+        reload_certificate = configure_sni(
+            context, args.sni_domain, args.sni_cert, args.sni_key
+        )
+
+        def reload_sni(signum, frame):
+            try:
+                reload_certificate()
+                print(f"SNI certificate reloaded: {args.sni_domain}", flush=True)
+            except (OSError, ssl.SSLError) as exc:
+                print(f"SNI reload failed; keeping previous certificate: {exc}", flush=True)
+
+        signal.signal(signal.SIGHUP, reload_sni)
     handler = functools.partial(Handler, directory=args.dir)
     with Server(
         (args.host, args.port), handler, context,
