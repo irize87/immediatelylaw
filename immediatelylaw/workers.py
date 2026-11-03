@@ -126,7 +126,7 @@ def data_host_list(cfg) -> list:
     순서: 사용자가 지정한 배포 주소(설정, 있으면 우선) → 내장 배포 서버 →
     추가 채널(mirror_url). 배포 주소는 config.clean_base_url로 검증하므로
     사용자가 스페이스 같은 값을 넣으면 그 칸은 없는 셈 쳐져 배포 서버를
-    바라본다. 전부 실패하면 업데프트만 멈추고 앱·데이터는 지금 상태로 계속
+    바라본다. 전부 실패하면 업데이읕만 멈추고 앱·데이터는 지금 상태로 계속
     동작한다."""
     raw = [clean_base_url(cfg.get("data_base_url")), MIRROR_BASE,
            clean_base_url(cfg.get("mirror_url"))]
@@ -390,7 +390,7 @@ class UpdaterWorker(QThread):
         raise IOError(" / ".join(errs) or "스냅샷 다운로드 실패")
 
 
-# ---------- 프로그램 자체 업데프트(배포 서버 app-latest.json) ----------
+# ---------- 프로그램 자체 업데이읕(배포 서버 app-latest.json) ----------
 # 설치 파일을 내려받아도 되는 호스트는 배포 채널 호스트로 한정한다
 # (확인 시점의 채널 호스트가 AppDownloadWorker에서 extra로 전달된다).
 # GitHub는 소스 코드 공개 전용이며 배포·다운로드 채널로 쓰지 않는다.

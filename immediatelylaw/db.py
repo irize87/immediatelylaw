@@ -109,7 +109,7 @@ class Database:
         self.conn.close()
 
     def reload_from_file(self, new_path):
-        """업데프트가 내려받은 DB 파일로 스토어를 교체한다."""
+        """업데이읕가 내려받은 DB 파일로 스토어를 교체한다."""
         with self._lock:
             try:
                 self.conn.close()
@@ -220,7 +220,7 @@ class Database:
         d["built_at"] = self.get_meta("built_at")
         return d
 
-    # ---------- 쓰기(빌더/업데프트용) ----------
+    # ---------- 쓰기(빌더/업데이읕용) ----------
     def replace_law(self, law: dict, articles: list, aliases: list,
                     action="upsert"):
         """law dict: mst/law_id/name/short/cls/promulgated/enforced/pending/agency.
