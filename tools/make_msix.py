@@ -26,7 +26,7 @@ STOREKIT = os.path.join(ROOT, "storekit")
 OUT = os.path.join(ROOT, "out")
 
 
-def _patch_manifest(name=None, publisher=None):
+def _patch_manifest(name=None, publisher=None, display=None):
     xml = open(os.path.join(STOREKIT, "AppxManifest.xml"),
                encoding="utf-8").read()
     ver = "%s.0" % __version__
@@ -44,6 +44,12 @@ def _patch_manifest(name=None, publisher=None):
                          lambda m: m.group(1) + publisher + m.group(2),
                          xml, count=1)
         assert n == 1
+    if display:
+        assert display.isascii(), "identity overrides must be ascii"
+        xml, n = re.subn(r"(<PublisherDisplayName>)[^<]*(</PublisherDisplayName>)",
+                         lambda m: m.group(1) + display + m.group(2),
+                         xml, count=1)
+        assert n == 1, "PublisherDisplayName not found"
     return xml, ver
 
 
@@ -51,6 +57,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--name", help="Identity Name override (store reserved)")
     ap.add_argument("--publisher", help="Identity Publisher DN override")
+    ap.add_argument("--publisher-display-name",
+                    help="Properties/PublisherDisplayName override "
+                         "(계정 표시 이름과 일치해야 심사 통과)")
     ap.add_argument("--cert", default=os.path.join(
         os.environ.get("TEMP", ""), "il_scan", "store", "devcert.pfx"))
     ap.add_argument("--cert-password", default="password")
@@ -69,12 +78,13 @@ def main():
     shutil.copytree(os.path.join(STOREKIT, "Assets"),
                     os.path.join(layout, "Assets"))
 
-    xml, ver = _patch_manifest(a.name, a.publisher)
+    xml, ver = _patch_manifest(a.name, a.publisher, a.publisher_display_name)
     with open(os.path.join(layout, "AppxManifest.xml"), "w",
               encoding="utf-8", newline="") as f:
         f.write(xml)
 
-    msix = os.path.join(OUT, "ImmediatelyLaw_%s_x64.msix" % ver)
+    suffix = "_store" if a.no_sign else ""
+    msix = os.path.join(OUT, "ImmediatelyLaw_%s_x64%s.msix" % (ver, suffix))
     cmd = ["winapp", "package", layout,
            "--manifest", os.path.join(layout, "AppxManifest.xml"),
            "--output", msix]
