@@ -3,6 +3,7 @@
 
 전략: '제N조(의2 포함)' 지점을 찾은 뒤, 바로 앞의 법령명 토큰을 역축합한다.
   - 「형법」 제23조      : 인용부호 우선
+  - “민법 제750조”       : 인용부호가 법령명+조문 전체를 감싼 형태
   - 개인정보 보호법  제13조 : 공백 포함 법령명(조사·연결어는 제외)
   - 형법 제23조 및 같은 법 제24조 : '같은 법/동법'은 직전 법령명 사용
 """
@@ -29,6 +30,19 @@ STOP_EXCEPTION = {"법", "률", "령", "칙"}
 BRACKET_RE = re.compile(
     r"[「『“\"'‘]+\s*([\u3131-\uD79A0-9a-zA-Z\s·\(\)ー\-]{2,58}?)\s*[」』”\"'’]+\s*"
     r"제\s*([0-9]{1,4})\s*조(?:의([0-9]{1,3}))?")
+
+# 인용부호가 법령명뿐 아니라 조문까지 함께 감싼 형태: "○○법 제15조", 「○○법 제15조」.
+# BRACKET_RE는 닫는 부호가 조 앞에 있어야 하므로 두 패턴은 겹치지 않는다.
+# 이름 문자 클래스에 인용부호·문장부호가 없어 다른 문장으로 번지지 않는다.
+# (가드) 이름이 중간에 '제+숫자'를 삼키면 여러 조문을 한 쌍의 따옴표로 감싼
+# 입력에서 잘못된 장문 후보가 생기므로, 그런 확장만 막는다.
+_NAME_NO_ART = r"(?:(?!제\s*[0-9])[\u3131-\uD79A0-9a-zA-Z\s·\(\)ー\-])"
+QUOTE_FULL_RE = re.compile(
+    r"[「『“\"'‘]\s*(" + _NAME_NO_ART + r"{2,58}?)\s*"
+    r"제\s*([0-9]{1,4})\s*조(?:의([0-9]{1,3}))?\s*[」』”\"'’]")
+
+# 여는 인용부호(역축합에서 토큰 앞면만 제거; 이 부호=법령명의 시작 경계)
+OPEN_QUOTES = "「『“\"'‘"
 
 NAME_CHAR = re.compile(r"^[\u3131-\uD79A0-9a-zA-Z·\-ー\(\)\.]+$")
 
@@ -57,17 +71,27 @@ def _back_name(text_before: str):
     picked = []
     for tok in reversed(tokens):
         tok2 = tok.rstrip("」』”’'.,;:·")
+        # 앞에만 붙은 여는 인용부호 제거(예: '“개인정보'). 그 따옴표가 인용의
+        # 시작이므로 처리 이후로는 법령명 앞 문장 쪽으로 절대 넘지 않는다.
+        quoted_head = False
+        while tok2 and tok2[0] in OPEN_QUOTES:
+            tok2 = tok2[1:]
+            quoted_head = True
         if not tok2 or not NAME_CHAR.match(tok2):
             break
         if not picked:
             if not _ends_suffix(tok2):
                 break
             picked.insert(0, tok2)
+            if quoted_head:
+                break
             continue
         # 시행령/시행규칙 이음: "○○법 시행령"
         if picked[0] in ("시행령", "시행규칙", "시행규정", "시행준칙"):
             if _ends_suffix(tok2):
                 picked.insert(0, tok2)
+                if quoted_head:
+                    break
                 continue
             break
         if tok2 in STOP_WORDS and tok2 not in STOP_EXCEPTION:
@@ -77,6 +101,8 @@ def _back_name(text_before: str):
         if _ends_suffix(tok2):
             break  # 다른 법령명이 앞선 경우
         picked.insert(0, tok2)
+        if quoted_head:
+            break
     if not picked:
         return []
     cands = []
@@ -113,6 +139,11 @@ def parse(text: str, prev_law: str = ""):
     for bm in BRACKET_RE.finditer(text):
         bart = bm.group(2) + (f"의{bm.group(3)}" if bm.group(3) else "")
         bracket_map[bm.start(2)] = (bm.group(1).strip(), bart)
+    # 인용부호가 조문까지 감싼 형태("○○법 제N조"). 같은 조 위치에서는
+    # 「…」 제N조 형태가 이미 잡았으므로 그것이 우선한다(setdefault).
+    for qm in QUOTE_FULL_RE.finditer(text):
+        qart = qm.group(2) + (f"의{qm.group(3)}" if qm.group(3) else "")
+        bracket_map.setdefault(qm.start(2), (qm.group(1).strip(), qart))
 
     for m in ART_RE.finditer(text):
         art = m.group(1) + (f"의{m.group(2)}" if m.group(2) else "")
