@@ -465,8 +465,11 @@ class SettingsDialog(QDialog):
         if buildflag.IS_STORE:
             # 스토어 버전: 버전 확인·설치는 스토어 소관이고 MSIX에서 Run 키는
             # 의미 없다. 저장·적용 코드 쪽도 같은 조건으로 건너뛴다.
-            for w in (self.chk_auto, self.chk_updchk, self.btn_updnow):
-                w.setVisible(False)
+            # 주의: 변수명을 바깥의 탭 위젯 w와 겹치게 쓰면(w를 반복변수로
+            # 재사용하면) w의 마지막 참조가 사라져 C++ 위젯이 즉시 파괴되고
+            # setVisible이 RuntimeError로 터진다(v1.6.0 스토어판 실측 사고).
+            for _w in (self.chk_auto, self.chk_updchk, self.btn_updnow):
+                _w.setVisible(False)
         lay.addStretch(1)
         return w
 
