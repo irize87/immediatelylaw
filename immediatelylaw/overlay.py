@@ -107,8 +107,8 @@ class FooterBar(QWidget):
             "https://www.law.go.kr/", "법령정보센터 ↗",
             "국가법령정보센터(www.law.go.kr) 열기")
         self.btn_author = self._link(
-            "https://github.com/irize87", "제작자 ↗",
-            "제작자 GitHub 페이지 열기")
+            "https://immediatelylaw.kro.kr/", "제작자 ↗",
+            "즉시로 홈페이지 열기")
         self.btn_copy = QPushButton("  복사  ")
         self.btn_copy.setCursor(Qt.PointingHandCursor)
         self.btn_copy.setFocusPolicy(Qt.NoFocus)
