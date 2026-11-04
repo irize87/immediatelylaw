@@ -151,8 +151,11 @@ class SettingsDialog(QDialog):
         self.update_requested.emit()
 
     # ---------- 자치법규 ----------
+    # The dedicated HWPX entry is a belt-and-braces measure: the native
+    # shell dialog was observed on some machines to hide the 4-letter
+    # extension inside the combined filter.
     LOCAL_FILTER = ("자치법규 파일 (*.hwpx *.hwp *.doc *.docx *.pdf *.rtf "
-                    "*.txt *.md;;모든 파일 (*.*)")
+                    "*.txt *.md;;HWPX (*.hwpx);;모든 파일 (*.*)")
 
     def _tab_local(self):
         w = QWidget()
@@ -243,8 +246,12 @@ class SettingsDialog(QDialog):
                 it.data(Qt.UserRole + 2))
 
     def _local_add(self):
+        # Deterministic filtering: some native shell dialogs have been
+        # observed to drop *.hwpx from the filter list; Qt's own matcher
+        # applies the same pattern string reliably.
         files, _ = QFileDialog.getOpenFileNames(
-            self, "자치법규 파일 추가", localreg.REG_DIR, self.LOCAL_FILTER)
+            self, "자치법규 파일 추가", localreg.REG_DIR, self.LOCAL_FILTER,
+            options=QFileDialog.DontUseNativeDialog)
         if not files:
             return
         os.makedirs(localreg.REG_DIR, exist_ok=True)
@@ -266,7 +273,19 @@ class SettingsDialog(QDialog):
                     errs.append(f"{os.path.basename(f)}: {e}")
                     continue
             try:
-                name, n = localreg.import_file(self.db, dest)
+                pname, parts = localreg.preview_file(dest)
+            except Exception as e:
+                errs.append(f"{os.path.basename(f)}: {e}")
+                continue
+            title, ok = QInputDialog.getText(
+                self, "제목 확인",
+                "자동 인식한 제목을 확인하세요. 필요하면 고쳐도 됩니다.",
+                text=pname)
+            if not ok:
+                continue
+            try:
+                name, n = localreg.commit_file(
+                    self.db, dest, (title or "").strip() or pname, parts)
                 done.append(f"{name} ({n}조)")
             except Exception as e:
                 errs.append(f"{os.path.basename(f)}: {e}")
@@ -288,7 +307,8 @@ class SettingsDialog(QDialog):
         lid, source, name = sel
         f, _ = QFileDialog.getOpenFileName(
             self, f"{name} — 제·개정된 새 파일 선택",
-            os.path.dirname(source) or localreg.REG_DIR, self.LOCAL_FILTER)
+            os.path.dirname(source) or localreg.REG_DIR, self.LOCAL_FILTER,
+            options=QFileDialog.DontUseNativeDialog)
         if not f:
             return
         dest = source or os.path.join(localreg.REG_DIR, os.path.basename(f))
@@ -298,7 +318,19 @@ class SettingsDialog(QDialog):
             QMessageBox.warning(self, "즉시로", f"복사 실패: {e}")
             return
         try:
-            new_name, n = localreg.import_file(self.db, dest)
+            pname, parts = localreg.preview_file(dest)
+        except Exception as e:
+            QMessageBox.warning(self, "즉시로", f"등록 실패: {e}")
+            return
+        title, ok = QInputDialog.getText(
+            self, "제목 확인",
+            "자동 인식한 제목을 확인하세요. 필요하면 고쳐도 됩니다.",
+            text=pname)
+        if not ok:
+            return
+        try:
+            new_name, n = localreg.commit_file(
+                self.db, dest, (title or "").strip() or pname, parts)
         except Exception as e:
             QMessageBox.warning(self, "즉시로", f"등록 실패: {e}")
             return
@@ -324,8 +356,11 @@ class SettingsDialog(QDialog):
             self.db.conn.execute("DELETE FROM local_article WHERE lid=?",
                                  (lid,))
             self.db.conn.execute("DELETE FROM local_law WHERE id=?", (lid,))
-            self.db.conn.execute("DELETE FROM alias WHERE key=?",
-                                 (norm_name(name),))
+            # every alias key pointing at this document goes with it
+            # (rename-retired keys are already gone; this catches the rest)
+            self.db.conn.execute(
+                "DELETE FROM alias WHERE law_id=? OR key=?",
+                (f"local:{lid}", norm_name(name)))
             self.db.conn.commit()
         if source and os.path.isfile(source):
             try:

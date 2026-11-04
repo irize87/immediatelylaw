@@ -41,7 +41,7 @@ def make_stub(found_article=None):
     import immediatelylaw.resolver as rs
     orig = rs.resolve
 
-    def fake_resolve(db, law, art, api, hints=None):
+    def fake_resolve(db, law, art, api, hints=None, auto=None):
         if found_article is None:
             return {"found": False}
         return {"found": True, "law_name": law, "art_no": art,

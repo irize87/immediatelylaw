@@ -541,7 +541,10 @@ class OverlayCard(QWidget):
         if chap:
             self.lb_chap.setText(chap)
         src = res.get("source")
-        if src == "local-reg":
+        if res.get("low_conf"):
+            self.set_badge("check", "",
+                           "이름 일부 일치로 표시 — 실시간 확인 필요")
+        elif src == "local-reg":
             self.set_badge("neutral", "자치",
                            "등록한 자치법규입니다.\n"
                            "법령정보센터 실시간 확인 대상이 아닙니다.")
@@ -560,7 +563,7 @@ class OverlayCard(QWidget):
         perf.mark(rid, "html_end")
         self.lb_state.setText(note)
         self._place_and_show()
-        if res.get("source") != "local-reg":
+        if res.get("source") != "local-reg" or res.get("low_conf"):
             self.verify_requested.emit(res)
 
     def paintEvent(self, e):

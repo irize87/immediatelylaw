@@ -123,7 +123,10 @@ class LawApi:
                 return r
             if r["short"] and re.sub(r"\s+", "", r["short"]) == target:
                 best = best or r
-        return best or (rows[0] if rows else None)
+        # No exact name/short match means "not held" -- never hand back the
+        # first search hit. That single fallback cached unrelated statutes
+        # under the searched name, i.e. the worst false-positive path here.
+        return best
 
     # ---- 전문 ----
     def fetch_full(self, mst: int):

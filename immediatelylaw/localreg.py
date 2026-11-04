@@ -283,14 +283,22 @@ def parse_regulation(text: str, fallback_name: str):
     return name, arts
 
 
-def import_file(d: Database, path: str):
-    """파일 1개 등록/갱신. (law_name, 조문수) 반환."""
+def preview_file(path: str):
+    """Parse only (no DB write): (suggested_name, articles). The UI shows
+    the suggested title for user confirmation before commit_file."""
     text = _read_text(path)
     stem = os.path.splitext(os.path.basename(path))[0]
     name, arts = parse_regulation(text, stem)
     if not arts:
         raise ValueError("조문(제N조…)을 찾지 못했습니다.")
-    old = d.conn.execute("SELECT id FROM local_law WHERE source=?",
+    return name, arts
+
+
+def commit_file(d: Database, path: str, name: str, arts: list):
+    """Store (law_name, n_articles) under the user-confirmed title.
+    Aliases follow the title: rename retires the old key immediately, so a
+    deleted/renamed rule never lingers in the search dictionary."""
+    old = d.conn.execute("SELECT id,name FROM local_law WHERE source=?",
                          (path,)).fetchone()
     now = time.strftime("%Y-%m-%d %H:%M")
     with d._lock:
@@ -299,6 +307,11 @@ def import_file(d: Database, path: str):
             d.conn.execute("DELETE FROM local_article WHERE lid=?", (lid,))
             d.conn.execute("UPDATE local_law SET name=?, added_at=? WHERE id=?",
                            (name, now, lid))
+            old_key = norm_name(old["name"])
+            if old_key and old_key != norm_name(name):
+                d.conn.execute(
+                    "DELETE FROM alias WHERE key=? AND law_id=?",
+                    (old_key, f"local:{lid}"))
         else:
             cur = d.conn.execute(
                 "INSERT INTO local_law(name,source,kind,added_at) "
@@ -312,6 +325,13 @@ def import_file(d: Database, path: str):
                        (norm_name(name), f"local:{lid}"))
         d.conn.commit()
     return name, len(arts)
+
+
+def import_file(d: Database, path: str):
+    """Register/update 1 file with the auto-parsed title (no UI step --
+    used by startup folder scan). Returns (law_name, n_articles)."""
+    name, arts = preview_file(path)
+    return commit_file(d, path, name, arts)
 
 
 def scan_dir(d: Database, reg_dir: str = REG_DIR):
@@ -341,5 +361,7 @@ def scan_dir(d: Database, reg_dir: str = REG_DIR):
             d.conn.execute("DELETE FROM local_law WHERE id=?", (row["id"],))
             d.conn.execute("DELETE FROM local_article WHERE lid=?",
                            (row["id"],))
+            d.conn.execute("DELETE FROM alias WHERE law_id=?",
+                           (f"local:{row['id']}",))
             d.conn.commit()
     return ok, fail

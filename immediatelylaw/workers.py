@@ -188,15 +188,17 @@ class ResolveWorker(QThread):
     """DB 미보유 법령의 라이브 폴백(OC 키) 포함 해석."""
     done = Signal(dict)   # resolver.resolve 결과
 
-    def __init__(self, db, api, hint, art, hints=None, parent=None):
+    def __init__(self, db, api, hint, art, hints=None, auto=None,
+                 parent=None):
         super().__init__(parent)
         self.db, self.api, self.hint, self.art = db, api, hint, art
         self.hints = hints
+        self.auto = auto
 
     def run(self):
         try:
             res = resolver.resolve(self.db, self.hint, self.art, self.api,
-                                   hints=self.hints)
+                                   hints=self.hints, auto=self.auto)
         except Exception as e:
             res = {"found": False, "error": str(e)}
         self.done.emit(res)

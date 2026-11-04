@@ -90,6 +90,12 @@ def norm_name(s: str) -> str:
     return s
 
 
+def _like_esc(s: str) -> str:
+    """Escape LIKE wildcards. Hints come from user clipboard text, so a
+    literal % or _ must not become a pattern (pairs with ESCAPE '\\')."""
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 class Database:
     def __init__(self, path=DB_PATH):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -161,6 +167,15 @@ class Database:
         return row
 
     def search_laws_by_name(self, hint: str, limit=30):
+        rows = self.search_laws_exact(hint, limit)
+        if rows:
+            return rows
+        return self.search_laws_contains(hint, limit)
+
+    def search_laws_exact(self, hint: str, limit=30):
+        """Tiers 1-3: exact official name / exact short name / approved-alias
+        prefix. Length gate does NOT apply here -- valid short names (2-char
+        codes) must keep resolving through this path."""
         h = norm_name(hint)
         if not h:
             return []
@@ -174,13 +189,19 @@ class Database:
             "AND replace(short,' ','')=? ORDER BY enforced DESC", (h,)).fetchall()
         if rows:
             return rows
-        # 접두/포함 매칭(짧은 이름 우선)
-        rows = self.conn.execute(
+        # approved-alias prefix match (shorter alias first)
+        return self.conn.execute(
             "SELECT l.* FROM law l JOIN alias a ON a.law_id=l.law_id "
-            "WHERE l.pending=0 AND a.key LIKE ?||'%' "
-            "ORDER BY length(a.key) LIMIT ?", (h, limit)).fetchall()
-        if rows:
-            return rows
+            "WHERE l.pending=0 AND a.key LIKE ?||'%' ESCAPE '\\' "
+            "ORDER BY length(a.key) LIMIT ?", (_like_esc(h), limit)).fetchall()
+
+    def search_laws_contains(self, hint: str, limit=30):
+        """Tier 4: containment match. Last resort only -- resolver must rank
+        it BELOW exact hits of every other candidate and mark the result
+        low-confidence (verify shows '확인 필요')."""
+        h = norm_name(hint)
+        if not h:
+            return []
         if len(h) < 3:
             # a <=2-char hint is not specific enough: the containment tier
             # (ORDER BY length(name)) would return the SHORTEST law name --
@@ -189,8 +210,9 @@ class Database:
             return []
         return self.conn.execute(
             "SELECT * FROM law WHERE pending=0 "
-            "AND replace(name,' ','') LIKE ? "
-            "ORDER BY length(name) LIMIT ?", ('%' + h + '%', limit)).fetchall()
+            "AND replace(name,' ','') LIKE ? ESCAPE '\\' "
+            "ORDER BY length(name) LIMIT ?",
+            ('%' + _like_esc(h) + '%', limit)).fetchall()
 
     def get_alias(self, key):
         return self.conn.execute(
@@ -200,7 +222,18 @@ class Database:
         h = norm_name(hint)
         return self.conn.execute(
             "SELECT * FROM local_law WHERE replace(name,' ','') LIKE ? "
-            "ORDER BY length(name) LIMIT ?", ('%' + h + '%', limit)).fetchall()
+            "ESCAPE '\\' ORDER BY length(name) LIMIT ?",
+            ('%' + _like_esc(h) + '%', limit)).fetchall()
+
+    def local_find_name(self, hint: str):
+        """Exact (whitespace-stripped) title lookup in user-registered rules.
+        Part of the resolver's exact-first phase -- no wildcards here."""
+        h = norm_name(hint)
+        if not h:
+            return None
+        return self.conn.execute(
+            "SELECT * FROM local_law WHERE replace(name,' ','')=?",
+            (h,)).fetchone()
 
     def local_find(self, lid: int, art_no: str):
         return self.conn.execute(

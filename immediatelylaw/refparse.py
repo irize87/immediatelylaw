@@ -121,7 +121,7 @@ def _back_name(text_before: str):
         if quoted_head:
             break
     if not picked:
-        return []
+        return [], []
     cands = []
     for i in range(len(picked)):
         c = " ".join(picked[i:])
@@ -130,11 +130,15 @@ def _back_name(text_before: str):
         if _is_generic(c):
             continue  # tail-word-only fragment: not a law-name candidate
         cands.append(c)
-    # 가장 긴 후보 뒤로 "시행령/시행규칙" 붙은 변형도 후보에 추가
+    # After the longest candidate, add variants with the delegated suffix
+    # appended. These words are NOT in the copied text -- they are guesses,
+    # so they travel separately (law_auto) and the resolver keeps them out
+    # of the containment tier.
+    autos = []
     if cands:
         for sfx in ("시행령", "시행규칙"):
-            cands.append(cands[0] + " " + sfx)
-    return cands
+            autos.append(cands[0] + " " + sfx)
+    return cands, autos
 
 
 def parse(text: str, prev_law: str = ""):
@@ -146,13 +150,14 @@ def parse(text: str, prev_law: str = ""):
     out = []
     seen = set()
     last_law = base_name(prev_law) or None
-    def add(law, art, idx, law_all=None):
+    def add(law, art, idx, law_all=None, law_auto=None):
         key = (law, art)
         if key in seen:
             return
         seen.add(key)
         out.append({"law": law, "art": art, "index": idx,
-                    "law_all": law_all or [law]})
+                    "law_all": law_all or [law],
+                    "law_auto": list(law_auto or [])})
 
     # 인용부호형(「○○법」 제N조)을 먼저 전수 매핑
     bracket_map = {}
@@ -171,6 +176,7 @@ def parse(text: str, prev_law: str = ""):
         ctx = text[max(0, start - 80):start]
         law = None
         cands = []
+        autos = []
         # 1) 인용부호 「○○법」 제N조
         hit = bracket_map.get(m.start(1))
         if hit and hit[1] == art:
@@ -186,11 +192,11 @@ def parse(text: str, prev_law: str = ""):
         # 3) 바로 앞 명사축합(후보 여러 개). '같은 법' 어구인데 직전
         #    법령이 없으면 축합 시도로 잘못된 법령을 잡지 않고 건너뛴다.
         if not law and not mm:
-            cands = _back_name(ctx)
+            cands, autos = _back_name(ctx)
             law = cands[0] if cands else None
         if law:
             last_law = base_name(law)
-            add(law, art, start, cands or [law])
+            add(law, art, start, cands or [law], autos)
     # 제목 추출 보강: 제N조(타이틀)
     title_re = re.compile(
         r"^제\s*[0-9]+\s*조(?:의[0-9]+)?\s*[（(]([^）)]{1,40})[)）]")

@@ -335,3 +335,153 @@ def test_tier4_length_gate(tmp_path):
         assert rows and rows[0]["name"] == FP_LAW          # 4-char: allowed
     finally:
         d.close()
+
+
+# ---- G1..G7 policy regression (design review 2026-11-05) -----------------
+# All syllables again strictly from the DB-witnessed name set.
+GUGSE = _u("GUG", "SE")                    # gug-se
+GYUJEONG = _u("GYU", "JEONG")
+NAME_A = GUGSE + GANGRYEONG                # has art 1, NOT art 3
+NAME_B = GUGSE + _u("YUN", "RI") + GANGRYEONG   # has art 3
+BEOB = _u("BEOB")                          # beob (law suffix)
+
+
+def _seed_two(tmp_path):
+    from immediatelylaw.db import Database
+    d = Database(str(tmp_path / "g.db"))
+    d.conn.execute("INSERT INTO law(mst,law_id,name,pending) VALUES(1,'L1',?,0)",
+                   (NAME_A,))
+    d.conn.execute("INSERT INTO law(mst,law_id,name,pending) VALUES(2,'L2',?,0)",
+                   (NAME_B,))
+    d.conn.execute("INSERT INTO article(mst,art_no,title,body,ord) "
+                   "VALUES(1,'1','t','A1',1)")
+    d.conn.execute("INSERT INTO article(mst,art_no,title,body,ord) "
+                   "VALUES(2,'3','t','B3',1)")
+    d.conn.commit()
+    return d
+
+
+def test_g4_no_article_never_substitutes(tmp_path):
+    # NAME_A matches exactly but has no art 3; NAME_B would match via the
+    # short second hint. The design: stop -- never borrow another law's art.
+    from immediatelylaw import resolver
+    d = _seed_two(tmp_path)
+    try:
+        res = resolver.resolve(d, NAME_A, "3", None,
+                               hints=[NAME_A, _u("YUN", "RI") + GANGRYEONG])
+        assert not res["found"]
+        assert res.get("reason") == "law_no_article"
+        assert res.get("law_name") == NAME_A
+    finally:
+        d.close()
+
+
+def test_g3_g6_containment_last_and_low_conf(tmp_path):
+    # without an exact hit the containment tier still works, flagged low
+    from immediatelylaw import resolver
+    d = _seed_two(tmp_path)
+    try:
+        res = resolver.resolve(d, _u("YUN", "RI") + GANGRYEONG, "3", None,
+                               hints=[_u("YUN", "RI") + GANGRYEONG])
+        assert res["found"] and res["law_name"] == NAME_B
+        assert res.get("low_conf") is True
+        from immediatelylaw import resolver as R
+        kind, msg = R.verify(d, None, res)
+        assert kind == "check"
+    finally:
+        d.close()
+
+
+def test_g1_like_wildcards_are_literal(tmp_path):
+    # % and _ coming from clipboard text must not act as LIKE wildcards
+    from immediatelylaw.db import Database
+    d = Database(str(tmp_path / "esc.db"))
+    for mst, nm in ((1, "A_B" + BEOB), (2, "A%B" + BEOB), (3, "XAxB" + BEOB)):
+        d.conn.execute(
+            "INSERT INTO law(mst,law_id,name,pending) "
+            "VALUES(?, 'E' || ?, ?, 0)", (mst, mst, nm))
+    d.conn.commit()
+    try:
+        got = [r["name"] for r in d.search_laws_contains("A%B")]
+        assert got == ["A%B" + BEOB]
+        got = [r["name"] for r in d.search_laws_contains("A_B")]
+        assert got == ["A_B" + BEOB]
+        assert d.search_laws_contains("XA_B") == []   # _ must not match x
+    finally:
+        d.close()
+
+
+def test_g2_api_no_first_hit_fallback():
+    # resolve_current must answer None unless name/short match exactly
+    from immediatelylaw import lawapi
+    api = object.__new__(lawapi.LawApi)
+    rows = [{"mst": 9, "name": NAME_B, "short": None}]
+    api.search = lambda **kw: (1, [dict(r) for r in rows])
+    assert lawapi.LawApi.resolve_current(api, GANGRYEONG + "X") is None
+    assert lawapi.LawApi.resolve_current(
+        api, NAME_B)["mst"] == 9
+
+
+def test_g7_auto_variants_exact_only(tmp_path):
+    # an inferred 'NAME_A 시행령' guess must never resolve via containment;
+    # without the auto flag the same containment hit stays available
+    from immediatelylaw.db import Database
+    from immediatelylaw import resolver, refparse
+    d = Database(str(tmp_path / "au.db"))
+    SIHAENGRYEONG = _u("SI", "HAENG", "RYEONG")
+    STORED = NAME_A + " " + SIHAENGRYEONG + " " + GANGRYEONG
+    d.conn.execute("INSERT INTO law(mst,law_id,name,pending) "
+                   "VALUES(1,'A1',?,0)", (STORED,))
+    d.conn.execute("INSERT INTO article(mst,art_no,title,body,ord) "
+                   "VALUES(1,'3','t','D3',1)")
+    d.conn.commit()
+    try:
+        auto = NAME_A + " " + SIHAENGRYEONG
+        res = resolver.resolve(d, NAME_A, "3", None,
+                               hints=[auto], auto=[auto])
+        assert not res["found"], res            # guess may not fuzzy-hit
+        res = resolver.resolve(d, auto, "3", None, hints=[auto])
+        assert res["found"] and res["law_name"] == STORED  # non-flagged ok
+        assert res.get("low_conf") is True
+        c = refparse.parse(NAME_A + " " + _u("JE") + "3" + _u("JO"))[0]
+        assert c["law_auto"] and not any(a in c["law_all"] for a in
+                                         c["law_auto"])
+    finally:
+        d.close()
+
+
+def test_g5_local_commit_rename_alias_lifecycle(tmp_path):
+    from immediatelylaw.db import Database, norm_name
+    from immediatelylaw import localreg, resolver
+    f = tmp_path / "reg.txt"
+    f.write_text(GUGSE + GYUJEONG + "\n"
+                 + _u("JE") + "1" + _u("JO") + " body-1\n"
+                 + _u("JE") + "2" + _u("JO") + " body-2\n", encoding="utf-8")
+    d = Database(str(tmp_path / "loc.db"))
+    try:
+        name, arts = localreg.preview_file(str(f))
+        assert name == GUGSE + GYUJEONG and len(arts) == 2
+        name, n = localreg.commit_file(d, str(f), name, arts)
+        assert n == 2
+        res = resolver.resolve(d, name, "1")
+        assert res["found"] and res["source"] == "local-reg"
+        assert not res.get("low_conf")          # exact title: no flag
+        # rename (user edited the confirmed title): old key retires
+        new = _u("YUN", "RI") + GANGRYEONG
+        localreg.commit_file(d, str(f), new, arts)
+        assert d.conn.execute("SELECT 1 FROM alias WHERE key=?",
+                              (norm_name(name),)).fetchone() is None
+        assert not resolver.resolve(d, name, "1")["found"]   # no ghost
+        assert resolver.resolve(d, new, "2")["found"]
+    finally:
+        d.close()
+
+
+def test_long_sentence_multi_citation_parses():
+    # design case 4 (long copy) + multi-citation: glued citations with an
+    # ASCII comma between them. Constants reused; nothing re-typed.
+    t = "「" + INSHIN + "」 " + _u("JE") + "1" + _u("JO") + ", 「" \
+        + INSHIN + "」 " + _u("JE") + "15" + _u("JO")
+    r = refparse.parse(t)
+    assert [(x["law"], x["art"]) for x in r] == [(INSHIN, "1"),
+                                                 (INSHIN, "15")]

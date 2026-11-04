@@ -205,7 +205,8 @@ class ImmediatelyLaw(QObject):
         perf.mark(rid, "resolve_start", group=len(group))
         for c in group:
             r = resolver.resolve(self.db, c["law"], c["art"], None,
-                                 hints=c.get("law_all"))
+                                 hints=c.get("law_all"),
+                                 auto=c.get("law_auto"))
             if r.get("found"):
                 found.append(r)
         perf.mark(rid, "resolve_end", found=len(found))
@@ -228,7 +229,8 @@ class ImmediatelyLaw(QObject):
                                    "법제처에서 조문을 가져오는 중입니다.")
             self.overlay.set_state("법제처에서 가져오는 중…")
             w = ResolveWorker(self.db, self.api, c["law"], c["art"],
-                              hints=c.get("law_all"))
+                              hints=c.get("law_all"),
+                              auto=c.get("law_auto"))
             gen = self.overlay.card_gen()
             w.done.connect(
                 lambda res, g=gen: self._on_live_resolved(g, res))
