@@ -12,8 +12,8 @@ import re
 ART_RE = re.compile(r"제\s*([0-9]{1,4})\s*조(?:의([0-9]{1,3}))?")
 
 # 법령명 어미로 인정되는 접미사(긴 것 우선)
-SUFFIXES = ("시행규칙", "시행령", "법", "률", "령", "칙", "조례", "규정",
-            "규칙", "요강", "지침", "고시", "훈령", "세칙")
+SUFFIXES = ("시행규칙", "시행령", "법", "률", "령", "칙", "조례", "규정", "규칙", "요강",
+             "지침", "고시", "훈령", "세칙", "예규", "강령", "요령", "절차")
 
 # 법령명이 아닌 조사·접속어(역축합 중단용)
 STOP_WORDS = {
@@ -26,6 +26,23 @@ STOP_WORDS = {
 }
 # 명사로 쓰여 법령명의 일부가 될 수 있는 어절(예외)
 STOP_EXCEPTION = {"법", "률", "령", "칙"}
+
+# Generic administrative-rule tail words (whitespace-stripped form).
+# A candidate made only of these words is NOT a law name -- it is the
+# tail of some longer title, and handing it to the fuzzy DB tiers turns
+# 'GANG-RYEONG art.3' into a lottery hit like '...GANG-RYEONG'.
+GENERIC_TAILS = frozenset((
+    "법", "률", "령", "칙", "시행규칙", "시행령", "조례", "규정", "규칙", "요강", "지침", "고시",
+    "훈령", "세칙", "예규", "강령", "요령", "절차", "시행규정", "시행준칙", "운영규정", "운영세칙",
+    "처리요령"))
+
+def _is_generic(name: str) -> bool:
+    return re.sub(r"[\s\u3000]+", "", name) in GENERIC_TAILS
+
+# Title-tail tokens that mark a registrable self-governance rule file
+# (localreg.NAME_HINT policy, single source here).
+LOCAL_TAIL_HINTS = (
+    "조례", "규칙", "규정", "훈령", "예규", "고시", "지침", "요강", "강령", "요령", "절차", "세칙")
 
 BRACKET_RE = re.compile(
     r"[「『“\"'‘]+\s*([\u3131-\uD79A0-9a-zA-Z\s·\(\)ー\-]{2,58}?)\s*[」』”\"'’]+\s*"
@@ -108,8 +125,11 @@ def _back_name(text_before: str):
     cands = []
     for i in range(len(picked)):
         c = " ".join(picked[i:])
-        if _ends_suffix(c):
-            cands.append(c)
+        if not _ends_suffix(c):
+            continue
+        if _is_generic(c):
+            continue  # tail-word-only fragment: not a law-name candidate
+        cands.append(c)
     # 가장 긴 후보 뒤로 "시행령/시행규칙" 붙은 변형도 후보에 추가
     if cands:
         for sfx in ("시행령", "시행규칙"):

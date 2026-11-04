@@ -244,3 +244,94 @@ def test_short_hint_mislinks_by_length_documented(tmp_path):
         assert rows and rows[0]["name"] == INSHIN
     finally:
         d.close()
+
+
+# ---- generic-tail false-positive regression (v1.6.x) --------------------
+# '119 SO-BANG GANG-RYEONG art.3' must NOT resolve to '...GANG-RYEONG', and
+# '119... UN-YEONG GYU-JYEONG art.3' must NOT resolve to '...UN-YEONG-GYU-
+# JYEONG'. All strings below are ASCII sources: syllables come from _u()
+# (unicodedata name lookup) only. The names used are DB-witnessed: real
+# statutes spell 'jeong' with the syllable named "JEONG" (U+C815), NOT the
+# look-alike "JYEONG" that tests above hold -- that one was verified wrong
+# against the production DB bytes in the v1.6.x review.
+GANGRYEONG = _u("GANG", "RYEONG")                       # gang-ryeong
+YEGYU = _u("YE", "GYU")                                 # yegyu
+BEOBGWANYUNRI = _u("BEOB", "GWAN", "YUN", "RI")
+FP_LAW = BEOBGWANYUNRI + GANGRYEONG                     # ...GANG-RYEONG law
+JEOKGEUK = _u("JEOG", "GEUG", "HANG", "JEONG")        # jeokgeuk-hangjeong
+UNYEONGGYUJEONG = _u("UN", "YEONG") + " " + _u("GYU", "JEONG")
+TRUE_OP = JEOKGEUK + " " + UNYEONGGYUJEONG              # real regulation name
+FP1 = "119 " + _u("SO", "BANG") + " " + GANGRYEONG + " " \
+    + _u("JE") + "3" + _u("JO")
+FP2 = "119" + _u("YI", "IN", "SANG") + " " + _u("UN", "YEONG") + " " \
+    + _u("GYU", "JEONG") + " " + _u("JE") + "3" + _u("JO")
+TRUE_REF = TRUE_OP + " " + _u("JE") + "3" + _u("JO")
+YEGYU_REF = _u("GUG", "SE", "HWAN", "GEUB") + YEGYU + " " \
+    + _u("JE") + "5" + _u("JO")                         # bare-yegyu form
+
+
+def _seed_op(tmp_path):
+    from immediatelylaw.db import Database
+    d = Database(str(tmp_path / "fp.db"))
+    d.conn.execute("INSERT INTO law(mst,law_id,name,pending) VALUES(1,'L1',?,0)",
+                   (FP_LAW,))
+    d.conn.execute("INSERT INTO law(mst,law_id,name,pending) VALUES(2,'L2',?,0)",
+                   (TRUE_OP,))
+    d.conn.execute("INSERT INTO article(mst,art_no,title,body,ord) "
+                   "VALUES(1,'3','t','A3',1)")
+    d.conn.execute("INSERT INTO article(mst,art_no,title,body,ord) "
+                   "VALUES(2,'3','t','B3',1)")
+    d.conn.commit()
+    return d
+
+
+def test_generic_tail_not_offered_as_candidate():
+    # the tail-only fragments must never leave the parser
+    for t in (FP1, FP2):
+        r = refparse.parse(t)
+        assert r, t
+        for h in r[0]["law_all"]:
+            assert h.replace(" ", "") not in refparse.GENERIC_TAILS
+
+
+def test_generic_fp_does_not_resolve(tmp_path):
+    from immediatelylaw import resolver
+    d = _seed_op(tmp_path)
+    try:
+        for t in (FP1, FP2):
+            c = refparse.parse(t)[0]
+            res = resolver.resolve(d, c["law"], c["art"], None,
+                                   hints=c["law_all"])
+            assert not res["found"], (t, res.get("law_name"))
+    finally:
+        d.close()
+
+
+def test_true_regulation_still_resolves(tmp_path):
+    # a citation WITH a specific head keeps working exactly as before
+    from immediatelylaw import resolver
+    d = _seed_op(tmp_path)
+    try:
+        c = refparse.parse(TRUE_REF)[0]
+        assert c["law"] == TRUE_OP
+        res = resolver.resolve(d, c["law"], c["art"], None, hints=c["law_all"])
+        assert res["found"] and res["law_name"] == TRUE_OP
+    finally:
+        d.close()
+
+
+def test_bare_yegyu_now_parses():
+    # SUFFIXES coverage: '...-yegyu art.5' parses at all now (was NO-PARSE)
+    r = refparse.parse(YEGYU_REF)
+    assert r and r[0]["law"] == _u("GUG", "SE", "HWAN", "GEUB") + YEGYU
+    assert r[0]["art"] == "5"
+
+
+def test_tier4_length_gate(tmp_path):
+    d = _seed_op(tmp_path)
+    try:
+        assert d.search_laws_by_name(GANGRYEONG) == []      # 2-char: blocked
+        rows = d.search_laws_by_name(_u("YUN", "RI") + GANGRYEONG)
+        assert rows and rows[0]["name"] == FP_LAW          # 4-char: allowed
+    finally:
+        d.close()

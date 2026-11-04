@@ -181,6 +181,12 @@ class Database:
             "ORDER BY length(a.key) LIMIT ?", (h, limit)).fetchall()
         if rows:
             return rows
+        if len(h) < 3:
+            # a <=2-char hint is not specific enough: the containment tier
+            # (ORDER BY length(name)) would return the SHORTEST law name --
+            # e.g. hint 'GANG-RYEONG' -> some '...GANG-RYEONG' law. Short
+            # hints may only match via the exact/alias tiers above.
+            return []
         return self.conn.execute(
             "SELECT * FROM law WHERE pending=0 "
             "AND replace(name,' ','') LIKE ? "
