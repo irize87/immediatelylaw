@@ -485,3 +485,49 @@ def test_long_sentence_multi_citation_parses():
     r = refparse.parse(t)
     assert [(x["law"], x["art"]) for x in r] == [(INSHIN, "1"),
                                                  (INSHIN, "15")]
+
+
+# ---- bare article numbers, no marker (v1.7.x) ------------------------------
+# '형법 22조' (spoken style, marker 'je' dropped) must parse. Guards:
+# digit-run lookbehind, and _back_name's law-suffix requirement keep money
+# ("300조 원") and long numbers ("12247조") silent. Also pins the tuple
+# early-return in _back_name: a citation copied ALONE (empty context) used
+# to crash the unpack in resolve callers.
+JE = _u("JE")                                    # article marker
+JO = _u("JO")                                    # article noun
+WON = _u("WEON")                                 # currency (U+C6D0)
+
+
+def test_bare_article_space():
+    assert first(HYUNG + " 22" + JO) == (HYUNG, "22")
+
+
+def test_bare_article_nospace():
+    assert first(HYUNG + "22" + JO) == (HYUNG, "22")
+
+
+def test_bare_article_sub():
+    assert first(HYUNG + " 22" + JO + _u("YI") + "3") == (HYUNG, "22" + _u("YI") + "3")
+
+
+def test_bare_number_after_bracket():
+    # 「법령명」 15조: bare number after a quoted title still binds to it
+    assert first("\u300c" + INSHIN + "\u300d 15" + JO) == (INSHIN, "15")
+
+
+def test_bare_money_and_longnum_silent():
+    assert refparse.parse("300" + JO + " " + WON) == []
+    assert refparse.parse("12247" + JO) == []
+
+
+def test_bare_after_marker_only_counts_once():
+    # '제3조 22조' is one citation: a bare number right after a finished
+    # article reference must not invent a second candidate
+    r = refparse.parse(HYUNG + " " + JE + "3" + JO + " 22" + JO)
+    assert [x["art"] for x in r] == ["3"]
+
+
+def test_marker_alone_does_not_crash():
+    # early returns in _back_name must stay 2-tuples: unpacking crash fix
+    assert refparse.parse(JE + "3" + JO) == []
+    assert refparse.parse("  " + JO) == []

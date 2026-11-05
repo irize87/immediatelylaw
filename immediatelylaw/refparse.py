@@ -9,7 +9,13 @@
 """
 import re
 
-ART_RE = re.compile(r"제\s*([0-9]{1,4})\s*조(?:의([0-9]{1,3}))?")
+# Article-number pattern. The canonical form carries the marker ('je-N-jo'),
+# but a bare 'N-jo' after a law name ("Hyeong-Beob 22-jo") must resolve too.
+# The lookbehind blocks starting inside a longer digit run ("12247-jo").
+# A bare hit still needs a law-suffix token right before it to become a
+# candidate at all (see _back_name), so "300-jo won" (money) stays silent.
+ART_RE = re.compile(
+    r"(?<![0-9])(?:제\s*)?([0-9]{1,4})\s*조(?:의([0-9]{1,3}))?")
 
 # 법령명 어미로 인정되는 접미사(긴 것 우선)
 SUFFIXES = ("시행규칙", "시행령", "법", "률", "령", "칙", "조례", "규정", "규칙", "요강",
@@ -81,10 +87,10 @@ def _back_name(text_before: str):
     t = text_before.rstrip()
     t = re.sub(r"[」』””’'\)·\.,;:·]+$", "", t).rstrip()
     if not t:
-        return []
+        return [], []
     tokens = t.split()
     if not tokens:
-        return []
+        return [], []
     picked = []
     for tok in reversed(tokens):
         tok2 = tok.rstrip("」』”’'.,;:·")
