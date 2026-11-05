@@ -531,3 +531,101 @@ def test_marker_alone_does_not_crash():
     # early returns in _back_name must stay 2-tuples: unpacking crash fix
     assert refparse.parse(JE + "3" + JO) == []
     assert refparse.parse("  " + JO) == []
+
+
+# ---- v1.8.x stop-word mis-resolve regression (two user-reported misses) ----
+# Input A: '<local-contract decree full name> art.25 para.1' resolved to a
+# metrology decree; input B (the same name minus two middle words) resolved
+# to the *state* contract decree. Root causes: _back_name dropped the
+# particle-bearing prefix at 'HANEUN' (a stop word that is part of real
+# law names), and the containment tier accepted fragments covering half of
+# a longer name -- the generic-tail lottery. All syllables are _u()-built
+# (unicodedata names cannot be mistyped); byte-identity of LOCAL_DECREE/
+# MEASURE_DECREE with production DB rows is asserted in the release probe.
+RYUL = _u("RYUL")                                    # ryul (law suffix)
+SIHAENGRYEONG = _u("SI", "HAENG", "RYEONG")           # sihaengryeong
+BEOGRYUL = BEOB + RYUL                               # beob-ryul
+LOCAL_DECREE = (_u("JI", "BANG", "JA", "CI", "DAN", "CE", "REUL") + " "
+                + _u("DANG", "SA", "JA", "RO") + " " + _u("HA", "NEUN") + " "
+                + _u("GYE", "YAG", "E") + " " + _u("GWAN", "HAN") + " "
+                + BEOGRYUL + " " + SIHAENGRYEONG)     # full local decree
+GUKGA_DECREE = (_u("GUG", "GA", "REUL") + " "
+                + LOCAL_DECREE.split(" ", 1)[1])      # state counterpart
+LOCAL_BROKEN = (_u("JI", "BANG", "JA", "CI", "DAN", "CE", "REUL") + " "
+                + _u("DANG", "SA", "JA", "RO") + " " + _u("HA", "NEUN") + " "
+                + BEOGRYUL + " " + SIHAENGRYEONG)     # mid-words dropped
+MEASURE_DECREE = (_u("GYE", "RYANG", "E") + " " + _u("GWAN", "HAN")
+                  + " " + BEOGRYUL + " " + SIHAENGRYEONG)   # metrology
+HANG = _u("HANG")                                    # paragraph noun
+
+
+def _seed_contracts(tmp_path):
+    from immediatelylaw.db import Database
+    d = Database(str(tmp_path / "ct.db"))
+    for mst, nm in ((1, LOCAL_DECREE), (2, GUKGA_DECREE),
+                    (3, MEASURE_DECREE)):
+        d.conn.execute("INSERT INTO law(mst,law_id,name,pending) "
+                       "VALUES(?, ?, ?, 0)", (mst, "C%d" % mst, nm))
+        d.conn.execute("INSERT INTO article(mst,art_no,title,body,ord) "
+                       "VALUES(?,'25','t','B25',1)", (mst,))
+    d.conn.commit()
+    return d
+
+
+def test_bridge_keeps_stops_inside_official_name():
+    c = refparse.parse(LOCAL_DECREE + " " + JE + "25" + JO
+                       + " " + JE + "1" + HANG)[0]
+    assert c["law"] == LOCAL_DECREE
+    assert c["law_all"][0] == LOCAL_DECREE
+    assert c["art"] == "25"
+
+
+def test_full_name_resolves_exact_not_neighbor(tmp_path):
+    from immediatelylaw import resolver
+    d = _seed_contracts(tmp_path)
+    try:
+        c = refparse.parse(LOCAL_DECREE + " " + JE + "25" + JO
+                           + " " + JE + "1" + HANG)[0]
+        res = resolver.resolve(d, c["law"], c["art"], None,
+                               hints=c["law_all"], auto=c["law_auto"])
+        assert res["found"] and res["law_name"] == LOCAL_DECREE
+        assert not res.get("low_conf")               # exact tier, no badge
+    finally:
+        d.close()
+
+
+def test_dropped_midwords_not_lotteried(tmp_path):
+    # the truncated (non-existent) name must not borrow ANY law's art.25
+    from immediatelylaw import resolver
+    d = _seed_contracts(tmp_path)
+    try:
+        c = refparse.parse(LOCAL_BROKEN + " " + JE + "25" + JO)[0]
+        res = resolver.resolve(d, c["law"], c["art"], None,
+                               hints=c["law_all"], auto=c["law_auto"])
+        assert not res["found"], res.get("law_name")
+    finally:
+        d.close()
+
+
+def test_ratio_floor_blocks_half_length_tail(tmp_path):
+    # a bare 'beob-ryul sihaengryeong' tail covers 5/10 of the metrology
+    # name -- below the 0.6 floor, so containment must refuse it
+    from immediatelylaw import resolver
+    d = _seed_contracts(tmp_path)
+    try:
+        tail = BEOGRYUL + " " + SIHAENGRYEONG
+        res = resolver.resolve(d, tail, "25", None, hints=[tail])
+        assert not res["found"], res.get("law_name")
+    finally:
+        d.close()
+
+
+def test_bridge_stops_before_previous_article_token():
+    # bridging must not swallow a preceding 'je-3-jo' citation into the
+    # second citation's name
+    t = HYUNG + " " + JE + "3" + JO + " " + _u("HA", "NEUN") + " " \
+        + HYUNG + " " + JE + "22" + JO
+    r = refparse.parse(t)
+    assert [x["art"] for x in r] == ["3", "22"]
+    assert HYUNG in r[1]["law_all"]
+    assert all("3" not in h for h in r[1]["law_all"])

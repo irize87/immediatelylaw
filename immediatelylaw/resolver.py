@@ -119,11 +119,18 @@ def resolve(d, hint: str, art: str, api=None, hints=None, auto=None):
     # Containment tier -- only now, after every candidate had its exact
     # chance, and never for auto-inferred variants. A stalled exact match
     # forbids substitution outright.
+    # Ratio floor: a fragment covering under 60% of the matched name is a
+    # generic tail ('법률 시행령' style) that only wins the shortest-name
+    # lottery -- no match beats that guess. (DB-level containment stays
+    # ungated: the search-window listing is an explicit user query.)
     if not stalled:
         for h in hints:
-            if norm_name(h) in auto_n:
+            hn = norm_name(h)
+            if hn in auto_n:
                 continue
             for row in d.search_laws_contains(h):
+                if len(hn) * 5 < len(norm_name(row["name"])) * 3:
+                    continue
                 a = d.find_article(row["mst"], art)
                 if a:
                     return _fill({"found": True, "source": "local",

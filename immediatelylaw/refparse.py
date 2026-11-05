@@ -33,6 +33,15 @@ STOP_WORDS = {
 # 명사로 쓰여 법령명의 일부가 될 수 있는 어절(예외)
 STOP_EXCEPTION = {"법", "률", "령", "칙"}
 
+# 역축합 허용 열거지(조사): 공식 법령명에 실제로 포함되는 형태만 건넌다
+# ('~를 당사자로 하는 ...법', 'A 및 B에 관한 법률'). '같은'·'동' 등
+# 같은-법 마커는 이 목록에 없어 넘지 않는다.
+BRIDGE_STOPS = {"하는", "및", "와", "과", "을", "를"}
+BRIDGE_STOP_MAX = 3
+# '제N조'·'N조'꼴 어절은 직전 인용이므로 법령명에 들어가선 안 된다
+# (예: "형법 제3조 및 같은 법" 역축합이 '제3조'를 삼키면 안 됨).
+ARTICLE_TOK = re.compile(r"^(?:제)?[0-9]{1,4}조")
+
 # Generic administrative-rule tail words (whitespace-stripped form).
 # A candidate made only of these words is NOT a law name -- it is the
 # tail of some longer title, and handing it to the fuzzy DB tiers turns
@@ -92,6 +101,7 @@ def _back_name(text_before: str):
     if not tokens:
         return [], []
     picked = []
+    stops = 0
     for tok in reversed(tokens):
         tok2 = tok.rstrip("」』”’'.,;:·")
         # 앞에만 붙은 여는 인용부호 제거(예: '“개인정보'). 그 따옴표가 인용의
@@ -101,6 +111,8 @@ def _back_name(text_before: str):
             tok2 = tok2[1:]
             quoted_head = True
         if not tok2 or not NAME_CHAR.match(tok2):
+            break
+        if ARTICLE_TOK.match(tok2):
             break
         if not picked:
             if not _ends_suffix(tok2):
@@ -118,7 +130,11 @@ def _back_name(text_before: str):
                 continue
             break
         if tok2 in STOP_WORDS and tok2 not in STOP_EXCEPTION:
-            break
+            # 법령명에 실제로 들어가는 조사는 정해진 개수까지 건너뛴다
+            # ('지방자치단체를 당사자로 하는 계약에 관한 법률 시행령').
+            if tok2 not in BRIDGE_STOPS or stops >= BRIDGE_STOP_MAX:
+                break
+            stops += 1
         if len(" ".join(picked)) + len(tok2) > 56:
             break
         if _ends_suffix(tok2):
