@@ -43,7 +43,8 @@ DEFAULTS = {
     "overlay_corner": "bottom_right", # top_right/top_left/bottom_right/bottom_left
     "auto_hide_sec": 30,           # 0 = 자동 숨김 없음(고정)
     "verify_enabled": True,        # 현행 여부 백그라운드 검증
-    "hotkey_enabled": True,        # Ctrl+Alt+L 조회창
+    "hotkey_enabled": True,        # 조회창 단축키 켜고 끔
+    "hotkey": "ctrl+alt+l",        # 조회창 단축키(기본: Ctrl+Alt+L)
     "autostart": True,             # Windows 시작 시 자동 실행(기본 켬)
     "clipboard_paused": False,
     "last_update_check": "",       # 마지막 개정 점검(YYYYMMDDHHMM)
@@ -57,7 +58,7 @@ DEFAULTS = {
 
 # 구버전 설정(config.json)에 남아 있을 수 있는 옛 데이터 채널. GitHub 데이터
 # 배포는 종료되어 지금 404이므로, 설정에 남아 있어서는 절대 안 되는 주소다
-# (일치하면 빈값 = 내장 배포 서버로 되돌린다).
+# (일치하면 빈갑 = 내장 배포 서버로 되돌린다).
 LEGACY_BASE_URLS = frozenset({
     "https://raw.githubusercontent.com/nazgregory/immediatelylaw-data/dist",
 })
@@ -68,7 +69,7 @@ def clean_base_url(value) -> str:
 
     규칙: 모든 공백(앞뒤·내부 탭/개행)을 제거한 뒤 https:// 접두사와 호스트가
     있어야 한다. 옛 GitHub 데이터 주소는 폐기. 사용자가 실수로 스페이스나
-    깨진 값을 넣어도 예외 없이 ''가 되어 배포 서버를 바라보게 된다.
+    깨진 갑을 넣어도 예외 없이 ''가 되어 배포 서버를 바라보게 된다.
     """
     u = "".join((value or "").split())          # 내부 공백·탭·개행까지 제거
     if not u:
@@ -138,7 +139,7 @@ class Config:
             for k in DEFAULTS:
                 if k in raw:
                     self._d[k] = raw[k]
-            # 배포 채널은 읽는 자리에서 항상 검증: 옛(404)·잘못된 값이 config.json에
+            # 배포 채널은 읽는 자리에서 항상 검증: 옛(404)·잘못된 갑이 config.json에
             # 남아 있어도 ''(내장 배포 서버)로 폴백된다(저장 시에도 동일 검증).
             self._d["data_base_url"] = clean_base_url(self._d.get("data_base_url"))
             self._d["mirror_url"] = clean_base_url(self._d.get("mirror_url"))

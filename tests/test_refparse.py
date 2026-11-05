@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""refparse 회귀 특성화 테스트. 기준값은 변경 전 실제 출력으로 고정했다.
+"""refparse 회귀 특성화 테스트. 기준갑은 변경 전 실제 출력으로 고정했다.
 성능 작업 중 파싱 결과가 달라지면 이 테스트가 먼저 잡는다."""
 from immediatelylaw import refparse
 

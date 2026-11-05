@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """배포 주소 검증 회귀 테스트.
 
-요청 사양: 배포 주소 기본값은 빈칸, 비어 있으면 배포 서버를 바라본다.
-실수로 스페이스 같은 값을 넣어 유통 검증을 통과하지 못해도 배포 서버로
+요청 사양: 배포 주소 기본갑은 빈칸, 비어 있으면 배포 서버를 바라본다.
+실수로 스페이스 같은 갑을 넣어 유통 검증을 통과하지 못해도 배포 서버로
 폴백돼야 한다(예외·Crash 없이)."""
 import json
 
@@ -69,7 +69,7 @@ def test_garbage_channels_never_become_channels():
 
 def test_valid_custom_channel_first_then_mirror():
     cfg = {"data_base_url": "https://a.example/dist/",
-           "mirror_url": LEGACY}   # 옛 값 → 제거, 중복 없는 2채널
+           "mirror_url": LEGACY}   # 옛 갑 → 제거, 중복 없는 2채널
     assert data_host_list(cfg) == ["https://a.example/dist", MIRROR_BASE]
 
 

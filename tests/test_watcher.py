@@ -31,7 +31,7 @@ class FakeClipboard(QObject):
         return item
 
     def push(self, value):
-        """새 복사를 시뮬레이션: 값 넣고 dataChanged."""
+        """새 복사를 시뮬레이션: 갑 넣고 dataChanged."""
         self.script.append(value)
         self.dataChanged.emit()
 

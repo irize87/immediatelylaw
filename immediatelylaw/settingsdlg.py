@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
                                QWidget)
 
 from . import __version__, buildflag, localreg, theme
+from . import hotkeyspec as hk
 from .config import clean_base_url
 from .db import norm_name
 
@@ -92,6 +93,63 @@ def get_autostart() -> bool:
         return False
     except OSError:
         return False
+
+
+class KeyGrabEdit(QLineEdit):
+    """Read-only capture box for the global hotkey: click it, then press
+    the desired combination. Esc (or any focus-out) cancels an in-progress
+    edit and restores the displayed value. Invalid combos (no Ctrl/Alt/Win)
+    flash a red border and are not accepted. ``spec`` holds the canonical
+    string; ``dirty`` marks a user change since construction."""
+
+    def __init__(self, spec, parent=None):
+        super().__init__(parent)
+        self.setReadOnly(True)
+        self.setAlignment(Qt.AlignCenter)
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setCursor(Qt.PointingHandCursor)
+        self.spec = spec
+        self.dirty = False
+        self._editing = False
+        self.setText(hk.format_spec(spec))
+
+    def set_spec(self, spec):
+        self.spec = spec
+        self.dirty = True
+        self.setStyleSheet("")
+        self.setText(hk.format_spec(spec))
+
+    def _paint_error(self):
+        self.setStyleSheet("border: 1px solid #dc2626;")
+
+    def mousePressEvent(self, ev):
+        self.setFocus(Qt.MouseFocusReason)
+        super().mousePressEvent(ev)
+
+    def focusInEvent(self, ev):
+        self._editing = True
+        self.setStyleSheet("border: 1px solid #2563eb;")
+        super().focusInEvent(ev)
+
+    def focusOutEvent(self, ev):
+        self._editing = False
+        self.setStyleSheet("")
+        self.setText(hk.format_spec(self.spec))
+        super().focusOutEvent(ev)
+
+    def keyPressEvent(self, ev):
+        if not self._editing:
+            super().keyPressEvent(ev)
+            return
+        if ev.key() == Qt.Key_Escape:
+            self._editing = False
+            self.clearFocus()
+            return
+        spec = hk.spec_from_key_event(ev.modifiers(), ev.key())
+        if spec:
+            self.set_spec(spec)
+        else:
+            self._paint_error()
 
 
 class SettingsDialog(QDialog):
@@ -482,8 +540,22 @@ class SettingsDialog(QDialog):
     def _tab_general(self):
         w = QWidget()
         lay = QVBoxLayout(w)
-        self.chk_hotkey = QCheckBox("단축키 Ctrl+Alt+L로 조회 창 열기")
+        self.chk_hotkey = QCheckBox("단축키로 조회 창 열기")
         self.chk_hotkey.setChecked(bool(self.cfg["hotkey_enabled"]))
+        self.grab_key = KeyGrabEdit(
+            str(self.cfg.get("hotkey") or hk.DEFAULT_SPEC))
+        self.chk_hotkey.toggled.connect(self.grab_key.setEnabled)
+        self.grab_key.setEnabled(bool(self.cfg["hotkey_enabled"]))
+        row_key = QHBoxLayout()
+        row_key.addWidget(self.grab_key, 1)
+        btn_key_reset = QPushButton("기본갑")
+        btn_key_reset.clicked.connect(
+            lambda: self.grab_key.set_spec(hk.DEFAULT_SPEC))
+        row_key.addWidget(btn_key_reset)
+        tip_key = QLabel("입력창을 클릭한 뒤 단축키 조합을 누르면 그대로 적용됩니다"
+                         " (Esc: 취소)")
+        tip_key.setStyleSheet("color:#6b7280;")
+        tip_key.setWordWrap(True)
         self.chk_pause = QCheckBox("클립보드 감시 일시정지 (복사해도 카드 미표시)")
         self.chk_pause.setChecked(bool(self.cfg["clipboard_paused"]))
         self.chk_auto = QCheckBox("Windows 시작 시 자동으로 실행")
@@ -493,6 +565,8 @@ class SettingsDialog(QDialog):
         self.btn_updnow = QPushButton("지금 새 버전 확인")
         self.btn_updnow.clicked.connect(self.app_update_requested.emit)
         lay.addWidget(self.chk_hotkey)
+        lay.addLayout(row_key)
+        lay.addWidget(tip_key)
         lay.addWidget(self.chk_pause)
         lay.addWidget(self.chk_auto)
         lay.addWidget(self.chk_updchk)
@@ -575,6 +649,7 @@ class SettingsDialog(QDialog):
         self.cfg["theme"] = self.cb_theme.currentData()
         self.cfg["verify_enabled"] = self.chk_verify.isChecked()
         self.cfg["hotkey_enabled"] = self.chk_hotkey.isChecked()
+        self.cfg["hotkey"] = self.grab_key.spec
         self.cfg["clipboard_paused"] = self.chk_pause.isChecked()
         url_in = self.ed_url.text()
         url = clean_base_url(url_in)

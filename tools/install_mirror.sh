@@ -22,7 +22,7 @@ if [ ! -f "$ETC/cert.pem" ]; then
 fi
 HASH=$(openssl x509 -in "$ETC/cert.pem" -outform DER | sha256sum | cut -d' ' -f1)
 echo "$HASH" > "$ETC/cert_hash.txt"
-echo "인증서 고정값(workers.py CERT_PINS에 기록): $HASH"
+echo "인증서 고정갑(workers.py CERT_PINS에 기록): $HASH"
 
 # 첫 동기화
 cp -f "$APP/data/dist/"* "$DIR"/ 2>/dev/null || true

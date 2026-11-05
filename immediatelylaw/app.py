@@ -22,6 +22,7 @@ from .searchwin import SearchWindow
 from .settingsdlg import SettingsDialog
 from .watcher import ClipboardWatcher, note_self_copy
 from . import buildflag, workers
+from . import hotkeyspec as hk
 from .workers import (AppDownloadWorker, AppUpdateWorker, UpdaterWorker,
                       VerifyWorker)
 
@@ -407,7 +408,7 @@ class ImmediatelyLaw(QObject):
             if auto else None
         box.setDefaultButton(b_no)
         box.setWindowFlags(box.windowFlags() | Qt.WindowStaysOnTopHint)
-        # exec() 반환값은 표준 버튼 int라 커스텀 버튼과 대조가 불안정하다.
+        # exec() 반환갑은 표준 버튼 int라 커스텀 버튼과 대조가 불안정하다.
         # 클릭 시그널로 선택을 기록한다.
         choice = []
         b_yes.clicked.connect(lambda: choice.append("yes"))
@@ -548,6 +549,7 @@ class ImmediatelyLaw(QObject):
             self.settings = SettingsDialog(self.cfg, self.db)
             self.settings.saved.connect(self._refresh_api)
             self.settings.saved.connect(self._apply_theme)
+            self.settings.saved.connect(self._on_settings_saved)
             self.settings.update_requested.connect(lambda: self._update(auto=False))
             self.settings.app_update_requested.connect(
                 lambda: self._check_app_update(auto=False))
@@ -561,7 +563,9 @@ class ImmediatelyLaw(QObject):
     def _build_menu(self):
         # 요청 사양: 우클릭 메뉴는 3개만 — 법령검색창 / 설정 / 종료
         m = QMenu()
-        act_search = m.addAction("법령 검색창  (Ctrl+Alt+L)")
+        act_search = m.addAction(
+            "법령 검색창  (%s)" % hk.format_spec(
+                self.cfg.get("hotkey"), sep=" + "))
         act_search.triggered.connect(self.show_search)
         act_set = m.addAction(f"설정  (v{__version__})")
         act_set.triggered.connect(self.show_settings)
@@ -574,12 +578,44 @@ class ImmediatelyLaw(QObject):
             self.show_search()
 
     def _register_hotkey(self):
-        if sys.platform != "win32" or not self.cfg["hotkey_enabled"]:
-            return
+        self._apply_hotkey()
+
+    def _apply_hotkey(self):
+        """(Re-)register the summon hotkey from config -- no restart needed.
+        Returns the spec actually in effect. When Windows refuses the wanted
+        combination (another process owns it), fall back to the default and
+        tell the user through the tray."""
+        if sys.platform != "win32":
+            return hk.DEFAULT_SPEC
         import ctypes
-        MOD_ALT, MOD_CONTROL = 0x0001, 0x0002
-        ctypes.windll.user32.RegisterHotKey(None, HOTKEY_ID,
-                                            MOD_ALT | MOD_CONTROL, 0x4C)
+        try:
+            ctypes.windll.user32.UnregisterHotKey(None, HOTKEY_ID)
+        except Exception:
+            pass
+        if not self.cfg["hotkey_enabled"]:
+            return ""
+        spec = hk.DEFAULT_SPEC
+        want = str(self.cfg.get("hotkey") or "")
+        if hk.parse_spec(want):
+            spec = want
+        mods, vk = hk.parse_spec(spec)
+        if ctypes.windll.user32.RegisterHotKey(None, HOTKEY_ID, mods, vk):
+            return spec
+        if spec == hk.DEFAULT_SPEC:
+            return ""                      # even the default is taken: mute
+        mods, vk = hk.parse_spec(hk.DEFAULT_SPEC)
+        ctypes.windll.user32.RegisterHotKey(None, HOTKEY_ID, mods, vk)
+        self.tray.showMessage(
+            APP_TITLE,
+            f"{hk.format_spec(spec)} 단축키를 다른 프로그램이 사용 중입니다.\n"
+            "기본갑(Ctrl+Alt+L)으로 등록했습니다.",
+            QSystemTrayIcon.Warning, 8000)
+        self.cfg["hotkey"] = hk.DEFAULT_SPEC
+        return spec
+
+    def _on_settings_saved(self):
+        self._apply_hotkey()
+        self._build_menu()                 # menu caption shows the new key
 
 
 def _single_instance() -> bool:

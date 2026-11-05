@@ -41,7 +41,7 @@ class ThinScrollBar(QScrollBar):
         super().__init__(parent)
         self._color = QColor(color)
         self.setCursor(Qt.PointingHandCursor)
-        # 직접 페인트이므로 값/범위 변화 시 스스로 갱신한다.
+        # 직접 페인트이므로 갑/범위 변화 시 스스로 갱신한다.
         self.valueChanged.connect(lambda *_: self.update())
         self.rangeChanged.connect(lambda *_: self.update())
 
@@ -73,7 +73,7 @@ class FooterBar(QWidget):
     """카드·조회창 공용 하단바: 글자크기 −/+(둥근 그룹) · 상태문구 · 링크 ·
     복사(둥근 버튼). 테마 팔레트로 색을 입힌다."""
     copy_clicked = Signal()
-    font_step = Signal(int)   # 새 pt (config에 저장 완료된 값)
+    font_step = Signal(int)   # 새 pt (config에 저장 완료된 갑)
 
     def __init__(self, cfg, parent=None):
         super().__init__(parent)
@@ -367,7 +367,7 @@ class OverlayCard(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setObjectName("cardRoot")
-        # 둥근 카드 본문 + 그림자용 여백(카드 본문 폭은 설정값 그대로)
+        # 둥근 카드 본문 + 그림자용 여백(카드 본문 폭은 설정갑 그대로)
         self.MARGIN = 14
         self.setFixedWidth(int(cfg["overlay_width"]) + self.MARGIN * 2)
 

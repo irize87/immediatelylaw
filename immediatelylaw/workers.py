@@ -43,7 +43,7 @@ def _https(url: str) -> str:
 # ---------- 배포 채널 ----------
 # 배포(데이터·프로그램·앱) 채널의 1순위는 공식 배포 서버(도메인, CA 인증서)다.
 # GitHub는 소스 코드 공개 전용으로만 쓰고 데이터 채널에서는 제외한다(옛 GitHub
-# 데이터 배포는 종료되어 현재 404 — 옛 값 걸러내기는 config.clean_base_url이
+# 데이터 배포는 종료되어 현재 404 — 옛 갑 걸러내기는 config.clean_base_url이
 # 담당). 같은 레이아웃(manifest.json / delta-*.json.xz / immediatelylaw-*.db.xz /
 # app-latest.json)을 배포하는 채널을 순서대로 시도한다.
 # 소스 공개 범위 정책: 실제 서버 IP는 코드에 적지 않는다. 도메인은 Let's
@@ -60,7 +60,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # 배포 서버 인증서 고정: 호스트 → 인증서(DER) sha256. 정책상 소스에는 지문을
 # 두지 않는다(기본 채널이 CA 검증 도메인이어서 고정이 불필요). 특수 채널(예:
 # IP 직접 지정 미러)을 쓸 일이 생기면 배포 시점에 이 사전에 채워 넣는다 —
-# 값이 있는 호스트만 verify=False + 지문 검증 경로로 진행하고, 없으면 평범한
+# 갑이 있는 호스트만 verify=False + 지문 검증 경로로 진행하고, 없으면 평범한
 # CA 검증을 쓴다.
 CERT_PINS: dict[str, str] = {}
 _pin_cache = {}
@@ -123,7 +123,7 @@ def data_host_list(cfg) -> list:
 
     순서: 사용자가 지정한 배포 주소(설정, 있으면 우선) → 내장 배포 서버 →
     추가 채널(mirror_url). 배포 주소는 config.clean_base_url로 검증하므로
-    사용자가 스페이스 같은 값을 넣으면 그 칸은 없는 셈 쳐져 배포 서버를
+    사용자가 스페이스 같은 갑을 넣으면 그 칸은 없는 셈 쳐져 배포 서버를
     바라본다. 전부 실패하면 업데이트만 멈추고 앱·데이터는 지금 상태로 계속
     동작한다."""
     raw = [clean_base_url(cfg.get("data_base_url")), MIRROR_BASE,

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""라이트/다크 모드: 테마 값 해석(theme system/light/dark)과 창·위젯에 적용할 색 팔레트."""
+"""라이트/다크 모드: 테마 갑 해석(theme system/light/dark)과 창·위젯에 적용할 색 팔레트."""
 
 SYSTEM = "system"
 
