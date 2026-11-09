@@ -548,7 +548,7 @@ class SettingsDialog(QDialog):
         self.grab_key.setEnabled(bool(self.cfg["hotkey_enabled"]))
         row_key = QHBoxLayout()
         row_key.addWidget(self.grab_key, 1)
-        btn_key_reset = QPushButton("기본갑")
+        btn_key_reset = QPushButton("기본값")
         btn_key_reset.clicked.connect(
             lambda: self.grab_key.set_spec(hk.DEFAULT_SPEC))
         row_key.addWidget(btn_key_reset)

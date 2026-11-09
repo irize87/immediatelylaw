@@ -408,7 +408,7 @@ class ImmediatelyLaw(QObject):
             if auto else None
         box.setDefaultButton(b_no)
         box.setWindowFlags(box.windowFlags() | Qt.WindowStaysOnTopHint)
-        # exec() 반환갑은 표준 버튼 int라 커스텀 버튼과 대조가 불안정하다.
+        # exec() 반환값은 표준 버튼 int라 커스텀 버튼과 대조가 불안정하다.
         # 클릭 시그널로 선택을 기록한다.
         choice = []
         b_yes.clicked.connect(lambda: choice.append("yes"))
@@ -608,7 +608,7 @@ class ImmediatelyLaw(QObject):
         self.tray.showMessage(
             APP_TITLE,
             f"{hk.format_spec(spec)} 단축키를 다른 프로그램이 사용 중입니다.\n"
-            "기본갑(Ctrl+Alt+L)으로 등록했습니다.",
+            "기본값(Ctrl+Alt+L)으로 등록했습니다.",
             QSystemTrayIcon.Warning, 8000)
         self.cfg["hotkey"] = hk.DEFAULT_SPEC
         return spec
