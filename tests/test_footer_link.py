@@ -68,6 +68,21 @@ def test_card_link_article_mode_keeps_decree_name(qtbot):
         "https://www.law.go.kr/법령/민법 시행령/제19조"
 
 
+def test_copy_drops_heading_already_in_body():
+    from immediatelylaw.overlay import format_copy
+    body = (
+        "제15조(개인정보의 수집\u318d이용)\n"
+        "① 개인정보처리자는 다음 각 호의 어느 하나에 해당하는 경우에는 "
+        "개인정보를 수집할 수 있으며 그 수집 목적의 범위에서 이용할 수 있다."
+    )
+    text = format_copy([{
+        "law_name": "개인정보 보호법", "art_no": "15",
+        "title": "개인정보의 수집\u318d이용", "body": body,
+    }])
+    assert text.startswith("개인정보 보호법 제15조 (개인정보의 수집\u318d이용)\n① ")
+    assert text.count("제15조") == 1
+
+
 def test_copy_includes_citation_and_body():
     from immediatelylaw.overlay import format_copy
     text = format_copy([{

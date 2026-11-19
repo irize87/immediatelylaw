@@ -292,13 +292,13 @@ class ImmediatelyLaw(QObject):
             return   # 다른 조문이 이미 표시됨 — 늦은 결과는 폐기한다
         text = {"current": "현행", "check": "확인",
                 "offline": "오프라인"}.get(kind)
-        if kind == "check" and msg:
-            tip = f"실시간 확인 결과\n{msg}"
-        elif kind not in ("current", "check"):
+        if kind == "offline":
             tip = ("오프라인 — 실시간 확인을 수행하지 못했습니다.\n"
                    "표시 내용은 데이터 갱신 시점 기준입니다.")
+        elif msg:
+            tip = msg
         else:
-            tip = ""   # current: 카드 기본 문구(법제처 실시간 확인) 사용
+            tip = ""
         self.overlay.set_badge(kind if kind in ("current", "check")
                                else "neutral", text, tip)
 

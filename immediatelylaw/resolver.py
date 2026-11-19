@@ -5,6 +5,7 @@ import time
 
 from .db import norm_name
 from . import textnorm
+from .lawapi import LawApiDenied
 
 
 def _art_key(art_no: str) -> str:
@@ -204,34 +205,51 @@ def verify(d, api, res: dict):
     if res["source"] == "local-reg":
         return "current", "등록된 자치법규 파일 기준"
     ver = d.get_meta("data_ver", "")
+    denied = ""
     # 라이브 키 있음: 법제처 현행과 직접 비교
     if api is not None:
         try:
             cur = api.resolve_current(res["law_name"])
+        except LawApiDenied as e:
+            # 연결은 됐다. 키의 허용 IP가 아니라 실시간 대조만 못한다.
+            denied = str(e)
         except Exception:
             return "offline", f"오프라인 · 데이터 {_mdd(ver)} 기준"
-        if not cur:
-            return "check", "법제처에서 법령을 찾지 못함"
-        if cur["mst"] == res.get("mst") and cur["enforced"] == res.get("enforced"):
-            return "current", "법제처 실시간 확인 · 현행"
-        # 버전이 다름 → 해당 조문 원문 비교
-        try:
-            x = api.fetch_article(cur["mst"], res["art_no"])
-        except Exception:
-            return "offline", f"오프라인 · 데이터 {_mdd(ver)} 기준"
-        if x is None:
-            return "check", "현행판에 해당 조문 없음(신설/삭제?)"
-        if textnorm.normalize(x["body"]) == textnorm.normalize(res["body"]):
-            return "current", "법제처 실시간 확인 · 현행"
-        return "check", "현행 조문과 다름(데이터 갱신 필요)"
+        else:
+            if not cur:
+                return "check", "법제처에서 법령을 찾지 못함"
+            if cur["mst"] == res.get("mst") and cur["enforced"] == res.get("enforced"):
+                return "current", "법제처 실시간 확인 · 현행"
+            # 버전이 다름 → 해당 조문 원문 비교
+            try:
+                x = api.fetch_article(cur["mst"], res["art_no"])
+            except LawApiDenied as e:
+                denied = str(e)
+            except Exception:
+                return "offline", f"오프라인 · 데이터 {_mdd(ver)} 기준"
+            else:
+                if x is None:
+                    return "check", "현행판에 해당 조문 없음(신설/삭제?)"
+                if textnorm.normalize(x["body"]) == textnorm.normalize(res["body"]):
+                    return "current", "법제처 실시간 확인 · 현행"
+                return "check", "현행 조문과 다름(데이터 갱신 필요)"
     # 키 없음: 배포 데이터 기준
     try:
         dver = time.strptime(ver[:8], "%Y%m%d")
         age = (time.time() - time.mktime(dver)) / 86400
     except Exception:
         return "check", "데이터 기준일 없음"
+    if denied:
+        tail = ("실시간 대조는 생략했습니다. "
+                "법제처 API 키에 이 PC의 IP가 등록되어 있지 않습니다.")
+    else:
+        tail = ""
+
+    def _with(msg: str) -> str:
+        return f"{msg}\n{tail}" if tail else msg
+
     if res.get("pending"):
-        return "check", "시행예정 버전 표시"
+        return "check", _with("시행예정 버전 표시")
     if age <= 7:
-        return "current", f"데이터 {_mdd(ver)} 기준 · 현행"
-    return "check", f"데이터가 {int(age)}일 전({_mdd(ver)})"
+        return "current", _with(f"데이터 {_mdd(ver)} 기준 · 현행")
+    return "check", _with(f"데이터가 {int(age)}일 전({_mdd(ver)})")

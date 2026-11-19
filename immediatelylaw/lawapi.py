@@ -21,6 +21,13 @@ class LawApiError(Exception):
     pass
 
 
+class LawApiDenied(LawApiError):
+    """서버는 응답했지만 키를 거부했다. 네트워크 단절이 아니다.
+
+    예: OC 키에 이 PC의 IP·도메인이 등록되어 있지 않음.
+    """
+
+
 class LawApi:
     def __init__(self, oc_key: str, min_interval=0.35):
         self.oc = (oc_key or "").strip()
@@ -75,9 +82,17 @@ class LawApi:
         body = self._get(f"{BASE}/lawSearch.do", {k: v for k, v in p.items()
                                                   if k != "OC" and v})
         try:
-            j = json.loads(body)["LawSearch"]
+            j = json.loads(body)
         except Exception as e:
             raise LawApiError(f"목록 응답 파싱 실패: {e}")
+        if "LawSearch" not in j:
+            msg = ""
+            if isinstance(j, dict):
+                msg = str(j.get("msg") or j.get("result") or "").strip()
+            if msg:
+                raise LawApiDenied(msg)
+            raise LawApiError("목록 응답 파싱 실패: LawSearch 없음")
+        j = j["LawSearch"]
         total = int(j.get("totalCnt", "0") or 0)
         laws = j.get("law") or []
         if isinstance(laws, dict):      # 결과가 1건이면 dict 하나로 온다

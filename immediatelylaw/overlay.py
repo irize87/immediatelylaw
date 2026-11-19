@@ -169,6 +169,35 @@ class MarqueeLabel(QWidget):
         p.drawText(2 - int(self._offset), y, self._text)
 
 
+_LEAD_ART = re.compile(
+    r"^제\s*([0-9]{1,4})(?:\s*의\s*([0-9]{1,3}))?\s*조"
+    r"(?:\s*[（(][^）)\r\n]{0,80}[）)])?"
+)
+
+
+def _without_repeated_heading(body: str, art_no: str) -> str:
+    """본문이 이미 '제N조(제목)'으로 시작하면 그 머리만 뺀다.
+
+    복사 첫 줄에 법령명과 조 제목을 붙이므로, 본문 첫 줄의 같은 조 제목은
+    두 번 나간다.
+    """
+    text = body or ""
+    stripped = text.lstrip()
+    m = _LEAD_ART.match(stripped)
+    if not m:
+        return text
+    got = m.group(1) + (f"의{m.group(2)}" if m.group(2) else "")
+    want = re.sub(r"\s+", "", art_no or "")
+    if want and got != want:
+        return text
+    rest = stripped[m.end():]
+    if rest.startswith("\r\n"):
+        rest = rest[2:]
+    elif rest.startswith(("\n", "\r")):
+        rest = rest[1:]
+    return rest
+
+
 def format_copy(res_list) -> str:
     """복사 문자열. 각 건은 '법령명 제N조 (제목)' 다음 줄에 조문 본문."""
     blocks = []
@@ -179,7 +208,7 @@ def format_copy(res_list) -> str:
         title = (res.get("title") or "").strip()
         if title:
             head += f" ({title})"
-        body = res.get("body") or ""
+        body = _without_repeated_heading(res.get("body") or "", res.get("art_no") or "")
         blocks.append(f"{head}\n{body}".rstrip())
     return "\n\n".join(blocks)
 

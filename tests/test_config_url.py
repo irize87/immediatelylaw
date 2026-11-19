@@ -91,6 +91,49 @@ def test_duplicate_channels_collapsed():
                                    "https://b.example"]
 
 
+def test_api_ip_denial_is_not_offline(tmp_path):
+    from immediatelylaw.db import Database
+    from immediatelylaw.lawapi import LawApiDenied
+    from immediatelylaw import resolver
+
+    class DeniedApi:
+        def resolve_current(self, name):
+            raise LawApiDenied("IP 미등록")
+
+    d = Database(str(tmp_path / "v.db"))
+    try:
+        d.set_meta("data_ver", "202611181800")
+        res = {"found": True, "source": "local", "law_name": "민법",
+               "art_no": "1", "body": "x", "mst": 1,
+               "enforced": "20260101", "pending": 0}
+        kind, msg = resolver.verify(d, DeniedApi(), res)
+        assert kind == "current"
+        assert "오프라인" not in msg
+        assert "IP" in msg
+    finally:
+        d.close()
+
+
+def test_network_error_stays_offline(tmp_path):
+    from immediatelylaw.db import Database
+    from immediatelylaw import resolver
+
+    class DownApi:
+        def resolve_current(self, name):
+            raise OSError("timed out")
+
+    d = Database(str(tmp_path / "v.db"))
+    try:
+        d.set_meta("data_ver", "202611181800")
+        res = {"found": True, "source": "local", "law_name": "민법",
+               "art_no": "1", "body": "x", "mst": 1,
+               "enforced": "20260101", "pending": 0}
+        kind, msg = resolver.verify(d, DownApi(), res)
+        assert kind == "offline"
+    finally:
+        d.close()
+
+
 def test_ensure_ca_bundle_points_at_a_real_file():
     path = ensure_ca_bundle()
     assert path and os.path.isfile(path)
