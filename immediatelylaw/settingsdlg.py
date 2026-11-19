@@ -206,9 +206,9 @@ class SettingsDialog(QDialog):
         self.ed_url = QLineEdit(self.cfg["data_base_url"])
         # 플레이스홀더에 배포 서버 주소를 박아두면 저장소만 봐도 서버가 드러난다.
         # 칸은 완전히 비운다 — 비운 상태로 저장하면 내장 배포 서버를 쓴다(툴팁 안내).
-        self.ed_url.setToolTip("직접 운영한 배포 서버 주소를 넣으면 그곳을 먼저 시도하고,\n"
-                               "연결 실패나 잘못된 형식(공백·http 등)으로는 자동 전환되어\n"
-                               "내장 공식 배포 서버를 사용합니다.")
+        self.ed_url.setToolTip("직접 운영한 배포 서버 주소를 넣으면 그곳을 가장 먼저 시도합니다.\n"
+                               "비우면 홈페이지 → GitHub → GitLab 순으로 확인합니다.\n"
+                               "앞 채널이 실패할 때만 다음 채널로 넘어갑니다.")
         row.addWidget(QLabel("배포 주소"))
         row.addWidget(self.ed_url, 1)
         lay.addLayout(row)

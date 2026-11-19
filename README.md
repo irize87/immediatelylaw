@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v2.0.0-blue" alt="v2.0.0">
+  <img src="https://img.shields.io/badge/version-v2.1.0-blue" alt="v2.1.0">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-blue" alt="Windows 10/11">
   <img src="https://img.shields.io/badge/Python-v3.15-blue" alt="Python">
@@ -148,10 +148,17 @@ zip을 받아 압축을 풉니다.
 
 ## 업데이트 원리
 
-앱은 내장된 **공식 배포 서버**(기본값 내장 — 설정에서 직접 운영 서버로 변경 가능)를
-주기적으로(8시간 + 시작 시) 확인합니다. `manifest.json`의 `data_ver`가 로컬과 다르면
+앱은 프로그램 버전(`app-latest.json`)과 법령 데이터(`manifest.json`)를
+같은 순서로 확인합니다. 앞 채널이 응답하면 뒤 채널은 보지 않습니다.
+
+1. 설정에 적은 배포 주소(비어 있으면 건너뜀)
+2. 홈페이지 `https://immediatelylaw.kro.kr`
+3. GitHub `downloads` 브랜치
+4. 공공 GitLab `downloads` 브랜치
+
+확인은 8시간마다, 그리고 시작할 때 합니다. `manifest.json`의 `data_ver`가 로컬과 다르면
 새 스냅샷(또는 델타)을 다운로드해 SHA-256 검증 후 적용합니다. 다운로드는 HTTPS로만
-이루어지며 검증 실패 시 적용되지 않습니다. 모든 최신화는 자동화되어 있습니다.
+이루어지며 검증 실패 시 적용되지 않습니다.
 
 배포 서버를 직접 운영(매일 최신화)하는 방법은
 [배포 서버 운영 가이드](docs/DATA_REPO.md)를 참고하세요.

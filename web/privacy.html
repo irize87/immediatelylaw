@@ -55,8 +55,8 @@ a{color:inherit}
 개인 식별 정보는 포함되지 않습니다.</p>
 <table>
 <tr><th>목적</th><th>받는 곳</th><th>전송되는 것</th></tr>
-<tr><td>법령 데이터 다운로드·갱신, 설치 파일</td><td>즉시로 공식 배포 서버</td><td>파일 요청 외 없음</td></tr>
-<tr><td>프로그램 새 버전 확인 (8시간마다)</td><td>즉시로 공식 배포 서버</td><td>설치 버전 번호가 적힌 공개 파일(app-latest.json)의 요청</td></tr>
+<tr><td>법령 데이터 다운로드·갱신, 설치 파일</td><td>홈페이지(immediatelylaw.kro.kr), 실패 시 GitHub, 그다음 GitLab</td><td>파일 요청 외 없음</td></tr>
+<tr><td>프로그램 새 버전 확인 (8시간마다)</td><td>홈페이지, 실패 시 GitHub, 그다음 GitLab</td><td>공개 파일(app-latest.json) 요청. 앞 채널이 응답하면 뒤 채널은 요청하지 않음</td></tr>
 <tr><td>조문 "현행 일치" 실시간 확인 기능 (사용자가 눌릴 때만)</td><td>국가법령정보센터(법제처) 공개 API</td><td>확인 대상으로 선택한 법령명·조 번호 — 이미 공개된 법령 정보</td></tr>
 </table>
 

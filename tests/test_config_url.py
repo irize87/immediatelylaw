@@ -8,7 +8,8 @@ import json
 
 from immediatelylaw import config as cfgmod
 from immediatelylaw.config import Config, clean_base_url
-from immediatelylaw.workers import MIRROR_BASE, data_host_list
+from immediatelylaw.workers import (BUILTIN_HOSTS, GITHUB_BASE, GITLAB_BASE,
+                                    MIRROR_BASE, data_host_list, pick_release)
 
 LEGACY = "https://raw.githubusercontent.com/nazgregory/immediatelylaw-data/dist"
 
@@ -62,18 +63,38 @@ def test_load_keeps_valid_url(tmp_path, monkeypatch):
 
 
 # ---------- workers.data_host_list ----------
+def test_builtin_order_is_homepage_github_gitlab():
+    assert data_host_list({}) == [MIRROR_BASE, GITHUB_BASE, GITLAB_BASE]
+    assert BUILTIN_HOSTS == (MIRROR_BASE, GITHUB_BASE, GITLAB_BASE)
+    assert "immediatelylaw.kro.kr" in MIRROR_BASE
+    assert "raw.githubusercontent.com" in GITHUB_BASE
+    assert "gitlab.aigov.go.kr" in GITLAB_BASE
+
+
 def test_garbage_channels_never_become_channels():
     cfg = {"data_base_url": " ", "mirror_url": "http://10.0.0.1"}
-    assert data_host_list(cfg) == [MIRROR_BASE]
+    assert data_host_list(cfg) == list(BUILTIN_HOSTS)
 
 
-def test_valid_custom_channel_first_then_mirror():
+def test_valid_custom_channel_first_then_builtins():
     cfg = {"data_base_url": "https://a.example/dist/",
-           "mirror_url": LEGACY}   # 옛 값 → 제거, 중복 없는 2채널
-    assert data_host_list(cfg) == ["https://a.example/dist", MIRROR_BASE]
+           "mirror_url": LEGACY}   # 옛 값 → 제거
+    assert data_host_list(cfg) == ["https://a.example/dist", *BUILTIN_HOSTS]
 
 
 def test_duplicate_channels_collapsed():
     cfg = {"data_base_url": MIRROR_BASE + "/",
            "mirror_url": "https://b.example"}
-    assert data_host_list(cfg) == [MIRROR_BASE, "https://b.example"]
+    assert data_host_list(cfg) == [MIRROR_BASE, GITHUB_BASE, GITLAB_BASE,
+                                   "https://b.example"]
+
+
+def test_pick_release_requires_sha_and_keeps_requested_kind():
+    doc = {"version": "v2.1.0", "files": {
+        "online": {"file": "a.zip", "size": 3, "sha256": "abc"},
+        "offline": {"file": "b.zip", "size": "9", "sha256": "def"}}}
+    assert pick_release(doc)["file"] == "a.zip"
+    assert pick_release(doc, offline=True) == {
+        "version": "v2.1.0", "file": "b.zip", "size": 9, "sha256": "def"}
+    assert pick_release({"version": "2.1.0", "files": {
+        "online": {"file": "a.zip"}}}) is None
