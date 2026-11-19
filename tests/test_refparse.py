@@ -629,3 +629,86 @@ def test_bridge_stops_before_previous_article_token():
     assert [x["art"] for x in r] == ["3", "22"]
     assert HYUNG in r[1]["law_all"]
     assert all("3" not in h for h in r[1]["law_all"])
+
+
+# ---- parent act must not resolve to its decree (user report) --------------
+# Production shape: the act is stored only as a not-yet-effective row
+# (pending=1), while 'act + 시행령/시행규칙' are current. Alias keys are the
+# whitespace-stripped official names, so a prefix match on the act name
+# used to return the decree as an exact hit.
+ACT = _u("SAN", "EOB", "AN", "JEON", "BO", "GEON", "BEOB")
+ACT_DEC = ACT + " " + SIHAENGRYEONG
+ACT_RULE = ACT + " " + _u("SI", "HAENG", "GYU", "CIG")
+
+
+def _seed_act_family(tmp_path, with_act=True, act_pending=1):
+    from immediatelylaw.db import Database, norm_name
+    d = Database(str(tmp_path / "act.db"))
+    rows = []
+    if with_act:
+        rows.append((1, "P1", ACT, act_pending, "ACT73"))
+    rows.append((2, "D1", ACT_DEC, 0, "DEC73"))
+    rows.append((3, "R1", ACT_RULE, 0, "RULE73"))
+    for mst, law_id, name, pending, body in rows:
+        d.conn.execute(
+            "INSERT INTO law(mst,law_id,name,pending) VALUES(?,?,?,?)",
+            (mst, law_id, name, pending))
+        d.conn.execute(
+            "INSERT INTO article(mst,art_no,title,body,ord) "
+            "VALUES(?,'73','t',?,1)", (mst, body))
+        d.conn.execute(
+            "INSERT INTO alias(key,law_id) VALUES(?,?)",
+            (norm_name(name), law_id))
+    d.conn.commit()
+    return d
+
+
+def test_pending_act_article_is_not_the_decree(tmp_path):
+    from immediatelylaw import resolver
+    d = _seed_act_family(tmp_path)
+    try:
+        assert [r["name"] for r in d.search_laws_exact(ACT)] == [ACT]
+        assert [r["name"] for r in d.search_laws_by_name(ACT)] == [ACT]
+        c = refparse.parse(ACT + " " + JE + "73" + JO)[0]
+        assert c["law"] == ACT
+        res = resolver.resolve(d, c["law"], c["art"], None,
+                               hints=c["law_all"], auto=c["law_auto"])
+        assert res["found"] and res["law_name"] == ACT
+        assert res["body"] == "ACT73"
+        assert not res.get("low_conf")
+    finally:
+        d.close()
+
+
+def test_current_act_still_beats_decree(tmp_path):
+    from immediatelylaw import resolver
+    d = _seed_act_family(tmp_path, act_pending=0)
+    try:
+        res = resolver.resolve(d, ACT, "73", None, hints=[ACT])
+        assert res["found"] and res["law_name"] == ACT
+        assert res["body"] == "ACT73"
+    finally:
+        d.close()
+
+
+def test_named_decree_still_resolves(tmp_path):
+    from immediatelylaw import resolver
+    d = _seed_act_family(tmp_path)
+    try:
+        res = resolver.resolve(d, ACT_DEC, "73", None, hints=[ACT_DEC])
+        assert res["found"] and res["law_name"] == ACT_DEC
+        assert res["body"] == "DEC73"
+    finally:
+        d.close()
+
+
+def test_missing_act_does_not_borrow_decree_article(tmp_path):
+    # the act row is absent: containment used to accept '법 시행령' because
+    # a long parent name still covers >= 60% of the decree title
+    from immediatelylaw import resolver
+    d = _seed_act_family(tmp_path, with_act=False)
+    try:
+        res = resolver.resolve(d, ACT, "73", None, hints=[ACT])
+        assert not res["found"], res.get("law_name")
+    finally:
+        d.close()

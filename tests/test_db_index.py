@@ -41,6 +41,22 @@ def test_exact_match_finds_spaced_name(tmp_path):
         d.close()
 
 
+def test_contains_prefix_outranks_shorter_infix(tmp_path):
+    """검색어로 시작하는 제목이, 더 짧아도 가운데에만 들어 있는 제목보다 앞선다."""
+    d = Database(str(tmp_path / "rank.db"))
+    try:
+        d.conn.execute(
+            "INSERT INTO law(mst,law_id,name,pending) VALUES(1,'A','ZABC',0)")
+        d.conn.execute(
+            "INSERT INTO law(mst,law_id,name,pending) VALUES(2,'B','ABCDEF',0)")
+        d.conn.commit()
+        names = [r["name"] for r in d.search_laws_contains("ABC")]
+        assert names[0] == "ABCDEF"
+        assert "ZABC" in names
+    finally:
+        d.close()
+
+
 def test_exact_match_query_plan_uses_index(tmp_path):
     """조회 계획이 TABLE FULL SCAN 대신 인덱스를 타야 한다(4단계의 목적)."""
     d = Database(str(tmp_path / "t.db"))

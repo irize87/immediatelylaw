@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QAbstractItemView, QVBoxLayout, QWidget)
 
 from . import refparse, resolver, theme
-from .overlay import FooterBar, ThinScrollBar, article_html
+from .overlay import FooterBar, ThinScrollBar, article_html, format_copy
 
 
 class SearchWindow(QWidget):
@@ -280,6 +280,7 @@ class SearchWindow(QWidget):
                                     "font-family:'Malgun Gothic';")
 
     def _on_copy(self):
-        if self._last_res:
-            self.copy_requested.emit(self._last_res["body"])
+        text = format_copy([self._last_res] if self._last_res else [])
+        if text:
+            self.copy_requested.emit(text)
             self.footer.set_state("클립보드에 복사했습니다.")

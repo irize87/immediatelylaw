@@ -173,14 +173,20 @@ class Database:
         return self.search_laws_contains(hint, limit)
 
     def search_laws_exact(self, hint: str, limit=30):
-        """Tiers 1-3: exact official name / exact short name / approved-alias
-        prefix. Length gate does NOT apply here -- valid short names (2-char
-        codes) must keep resolving through this path."""
+        """Tiers 1-3: exact official name / exact short name / exact alias key.
+        Length gate does NOT apply here -- valid short names (2-char codes)
+        must keep resolving through this path.
+
+        An alias key must equal the hint. A longer key that merely starts
+        with it ('산업안전보건법' → '산업안전보건법시행령') is a different
+        statute and is not an exact hit. When no current row matches, the
+        same official name on a not-yet-effective version still is."""
         h = norm_name(hint)
         if not h:
             return []
+        name_eq = "replace(replace(name,' ',''),'\u3000','')=?"
         rows = self.conn.execute(
-            "SELECT * FROM law WHERE pending=0 AND replace(replace(name,' ',''),'\u3000','')=?"
+            "SELECT * FROM law WHERE pending=0 AND " + name_eq +
             " ORDER BY enforced DESC", (h,)).fetchall()
         if rows:
             return rows
@@ -189,11 +195,15 @@ class Database:
             "AND replace(short,' ','')=? ORDER BY enforced DESC", (h,)).fetchall()
         if rows:
             return rows
-        # approved-alias prefix match (shorter alias first)
-        return self.conn.execute(
+        rows = self.conn.execute(
             "SELECT l.* FROM law l JOIN alias a ON a.law_id=l.law_id "
-            "WHERE l.pending=0 AND a.key LIKE ?||'%' ESCAPE '\\' "
-            "ORDER BY length(a.key) LIMIT ?", (_like_esc(h), limit)).fetchall()
+            "WHERE l.pending=0 AND a.key=? "
+            "ORDER BY l.enforced DESC LIMIT ?", (h, limit)).fetchall()
+        if rows:
+            return rows
+        return self.conn.execute(
+            "SELECT * FROM law WHERE " + name_eq +
+            " ORDER BY enforced DESC LIMIT ?", (h, limit)).fetchall()
 
     def search_laws_contains(self, hint: str, limit=30):
         """Tier 4: containment match. Last resort only -- resolver must rank
@@ -208,11 +218,15 @@ class Database:
             # e.g. hint 'GANG-RYEONG' -> some '...GANG-RYEONG' law. Short
             # hints may only match via the exact/alias tiers above.
             return []
+        esc = _like_esc(h)
+        # 검색어로 시작하는 제목을 가운데 포함보다 앞에 둔다.
+        # 길이만 보면 더 짧은 다른 법령이 앞서는 경우가 있다.
         return self.conn.execute(
             "SELECT * FROM law WHERE pending=0 "
             "AND replace(name,' ','') LIKE ? ESCAPE '\\' "
-            "ORDER BY length(name) LIMIT ?",
-            ('%' + _like_esc(h) + '%', limit)).fetchall()
+            "ORDER BY CASE WHEN replace(name,' ','') LIKE ? ESCAPE '\\' "
+            "THEN 0 ELSE 1 END, length(name) LIMIT ?",
+            ('%' + esc + '%', esc + '%', limit)).fetchall()
 
     def get_alias(self, key):
         return self.conn.execute(

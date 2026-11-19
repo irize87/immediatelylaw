@@ -11,6 +11,18 @@ def _art_key(art_no: str) -> str:
     return re.sub(r"\s+", "", art_no or "")
 
 
+# 본법 이름 뒤에만 붙어 별도 법령이 되는 위임 접미.
+# '○○법' 검색이 '○○법 시행령'으로 떨어지면 안 된다.
+_DELEG_TAILS = ("시행령", "시행규칙", "시행규정", "시행준칙")
+
+
+def _delegated_extension(hint_norm: str, name_norm: str) -> bool:
+    """일치 제목이 힌트에 위임 접미만 더한 다른 법령이면 True."""
+    if len(name_norm) <= len(hint_norm) or not name_norm.startswith(hint_norm):
+        return False
+    return name_norm[len(hint_norm):] in _DELEG_TAILS
+
+
 # 줄여 부르는 기본법 이름 → 공식 법령명(기본 법률 범위 확장).
 # 예: '헌법'은 대한민국헌법이지 헌법재판소법이 아니다.
 NAME_ALIAS = {
@@ -129,7 +141,10 @@ def resolve(d, hint: str, art: str, api=None, hints=None, auto=None):
             if hn in auto_n:
                 continue
             for row in d.search_laws_contains(h):
-                if len(hn) * 5 < len(norm_name(row["name"])) * 3:
+                rn = norm_name(row["name"])
+                if len(hn) * 5 < len(rn) * 3:
+                    continue
+                if _delegated_extension(hn, rn):
                     continue
                 a = d.find_article(row["mst"], art)
                 if a:

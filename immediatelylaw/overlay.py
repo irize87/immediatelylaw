@@ -5,10 +5,11 @@ import re
 import time
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import (QColor, QFont, QIcon, QPainter, QPen, QPixmap)
+from PySide6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QPainter, QPen,
+                           QPixmap)
 from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QScrollBar,
-                               QHBoxLayout, QLabel, QPushButton, QTextBrowser,
-                               QVBoxLayout, QWidget)
+                               QHBoxLayout, QLabel, QPushButton, QSizePolicy,
+                               QTextBrowser, QVBoxLayout, QWidget)
 
 from . import perf, theme
 from .refparse import base_name
@@ -67,6 +68,130 @@ class ThinScrollBar(QScrollBar):
         p.setPen(Qt.NoPen)
         p.setBrush(self._color)
         p.drawRoundedRect(2, y + 2, self.width() - 4, h - 4, 3, 3)
+
+
+class MarqueeLabel(QWidget):
+    """제목이 폭을 넘으면 왼쪽으로 흘려 끝까지 보여 준다.
+
+    앞부분을 잠깐 멈춘 뒤 끝까지 이동하고, 끝에서도 잠깐 멈춘 다음 처음으로
+    돌아간다. 폭 안에 들어가면 흐르지 않는다."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._text = ""
+        self._offset = 0
+        self._phase = "hold"
+        self._hold = 0
+        self._color = QColor("#20242b")
+        f = QFont("Malgun Gothic", 12)
+        f.setBold(True)
+        self.setFont(f)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.setMinimumHeight(self._line_h())
+        self._timer = QTimer(self)
+        self._timer.setInterval(25)
+        self._timer.timeout.connect(self._tick)
+
+    def text(self) -> str:
+        return self._text
+
+    def setText(self, text: str):
+        self._text = text or ""
+        self._offset = 0
+        self._phase = "hold"
+        self._hold = 0
+        self.setToolTip(self._text)
+        self._sync_timer()
+        self.update()
+
+    def set_color(self, color: str):
+        self._color = QColor(color)
+        self.update()
+
+    def _line_h(self) -> int:
+        return QFontMetrics(self.font()).height() + 4
+
+    def _overflow(self) -> int:
+        fm = QFontMetrics(self.font())
+        return fm.horizontalAdvance(self._text) - max(0, self.width() - 4)
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self._sync_timer()
+
+    def _sync_timer(self):
+        if self._overflow() > 4:
+            if not self._timer.isActive():
+                self._timer.start()
+        else:
+            self._timer.stop()
+            self._offset = 0
+            self._phase = "hold"
+            self.update()
+
+    def _tick(self):
+        over = self._overflow()
+        if over <= 4:
+            self._sync_timer()
+            return
+        if self._phase == "hold":
+            self._hold += 1
+            if self._hold >= 40:
+                self._phase = "scroll"
+        elif self._phase == "scroll":
+            self._offset = min(self._offset + 1, over)
+            if self._offset >= over:
+                self._phase = "end"
+                self._hold = 0
+        else:
+            self._hold += 1
+            if self._hold >= 40:
+                self._offset = 0
+                self._phase = "hold"
+                self._hold = 0
+        self.update()
+
+    def paintEvent(self, _ev):
+        p = QPainter(self)
+        p.setFont(self.font())
+        p.setPen(self._color)
+        p.setClipRect(self.rect())
+        fm = QFontMetrics(self.font())
+        y = (self.height() + fm.ascent() - fm.descent()) // 2
+        p.drawText(2 - int(self._offset), y, self._text)
+
+
+def format_copy(res_list) -> str:
+    """복사 문자열. 각 건은 '법령명 제N조 (제목)' 다음 줄에 조문 본문."""
+    blocks = []
+    for res in res_list or []:
+        if not res:
+            continue
+        head = f"{res.get('law_name') or ''} 제{res.get('art_no') or ''}조"
+        title = (res.get("title") or "").strip()
+        if title:
+            head += f" ({title})"
+        body = res.get("body") or ""
+        blocks.append(f"{head}\n{body}".rstrip())
+    return "\n\n".join(blocks)
+
+
+def article_url(law_name: str, art_no: str) -> str:
+    """해당 법령의 그 조문만 여는 법령정보센터 주소.
+
+    예: 민법 제75조 → /법령/민법/제75조
+        민법 시행령 제19조 → /법령/민법 시행령/제19조
+    본법 검색(법·시행령·시행규칙 세트)과는 다른 주소다."""
+    from urllib.parse import quote
+    name = (law_name or "").strip()
+    art = re.sub(r"\s+", "", art_no or "")
+    m = re.match(r"^([0-9]+)(?:의([0-9]+))?$", art)
+    if m:
+        jo = f"제{m.group(1)}조" + (f"의{m.group(2)}" if m.group(2) else "")
+    else:
+        jo = f"제{art}조"
+    return ("https://www.law.go.kr/법령/"
+            + quote(name, safe="") + "/" + quote(jo, safe=""))
 
 
 class FooterBar(QWidget):
@@ -201,12 +326,19 @@ class FooterBar(QWidget):
         if res.get("source") == "local-reg":
             self.btn_site.setVisible(False)
             return
-        url = self.center_url(res.get("law_name", ""))
+        mode = str(self.cfg.get("law_link_mode") or "set")
+        law_name = res.get("law_name", "")
+        if mode == "article" and res.get("art_no"):
+            url = article_url(law_name, res.get("art_no"))
+            tip = (f"{law_name} 제{res.get('art_no')}조 — "
+                   "해당 조문만 국가법령정보센터에서 열기")
+        else:
+            url = self.center_url(law_name)
+            shown = base_name(law_name) or law_name
+            tip = f"{shown} — 국가법령정보센터에서 법·시행령·시행규칙 함께 열기"
         self.btn_site.setProperty("url", url)
         self.btn_site.setProperty("label", "법령정보센터 ↗")
-        self.btn_site.setToolTip(
-            f"{base_name(res.get('law_name', '')) or res.get('law_name', '')} "
-            "— 국가법령정보센터에서 법·시행령·시행규칙 함께 열기")
+        self.btn_site.setToolTip(tip)
         self.btn_site.setVisible(True)
         self._paint_links()
 
@@ -393,10 +525,7 @@ class OverlayCard(QWidget):
         lay.setSpacing(6)
 
         top = QHBoxLayout(); top.setSpacing(8)
-        self.lb_title = QLabel("")
-        f = QFont("Malgun Gothic", 12); f.setBold(True)
-        self.lb_title.setFont(f)
-        self.lb_title.setStyleSheet("color:#20242b;")
+        self.lb_title = MarqueeLabel()
         self.lb_badge = QLabel("")
         bf = QFont("Malgun Gothic", 9); bf.setBold(True)
         self.lb_badge.setFont(bf)
@@ -445,7 +574,7 @@ class OverlayCard(QWidget):
         self.tv.setVerticalScrollBar(self.tv_sb)
         self.tv.setMinimumHeight(60)
         self.tv.setMaximumHeight(int(self._screen_h() * 0.5))
-        lay.addWidget(self.tv)
+        lay.addWidget(self.tv, 1)
 
         # 본문과 하단바를 가늘게 가르는 구분선(카드 끝까지 전폭)
         self.line = QFrame(self.body)
@@ -479,7 +608,7 @@ class OverlayCard(QWidget):
         self.tv_sb.set_color("#4a525e" if p["dark"] else "#b8cde9")
         self._shadow.setColor(
             QColor(0, 0, 0, 110) if p["dark"] else QColor(30, 41, 59, 70))
-        self.lb_title.setStyleSheet(f"color:{p['fg']};")
+        self.lb_title.set_color(p["fg"])
         chap_bg = "#2b323b" if p["dark"] else "#f3f5f8"
         self.chap_bar.setStyleSheet(
             f"#chapBar{{background:{chap_bg};border:none;border-radius:10px;}}")
@@ -508,6 +637,7 @@ class OverlayCard(QWidget):
                                     "border-radius:11px;"
                                     "font-family:'Malgun Gothic';")
         self.lb_badge.setToolTip(tip)
+        self._fit_title()
 
     @staticmethod
     def _screen_h():
@@ -563,6 +693,7 @@ class OverlayCard(QWidget):
         perf.mark(rid, "html_end")
         self.lb_state.setText(note)
         self._place_and_show()
+        self._fit_title()
         if res.get("source") != "local-reg" or res.get("low_conf"):
             self.verify_requested.emit(res)
 
@@ -606,15 +737,61 @@ class OverlayCard(QWidget):
                 self._current_list, pt, theme.palette(self.cfg)["dark"]))
         self._reflow()
 
+    def _configured_height(self) -> int:
+        """사용자가 지정한 카드 높이. 0이면 내용에 맞춘다."""
+        try:
+            want = int(self.cfg.get("overlay_height") or 0)
+        except (TypeError, ValueError):
+            want = 0
+        if want <= 0:
+            return 0
+        return max(240, min(want, self._screen_h() - 8))
+
+    def _apply_height(self):
+        fixed = self._configured_height()
+        if fixed:
+            self.tv.setMaximumHeight(16777215)
+            self.setFixedHeight(fixed)
+            return
+        self.tv.setMaximumHeight(int(self._screen_h() * 0.5))
+        self.setFixedHeight(min(self.sizeHint().height() + 20,
+                                 int(self._screen_h() * 0.72)))
+
+    def apply_box(self):
+        """설정에 적힌 폭·높이를 카드에 반영한다."""
+        self.setFixedWidth(int(self.cfg["overlay_width"]) + self.MARGIN * 2)
+        if self.isVisible():
+            self._apply_height()
+            self._move_to_corner()
+            self._fit_title()
+            return
+        if self._configured_height():
+            self.setFixedHeight(self._configured_height())
+        else:
+            self.setMinimumHeight(0)
+            self.setMaximumHeight(16777215)
+
+    def _fit_title(self):
+        """짧은 제목은 글자 폭만큼, 긴 제목은 배지·닫기 버튼을 남기고 흐른다."""
+        if self.body.width() < 80:
+            return
+        fm = QFontMetrics(self.lb_title.font())
+        text_w = fm.horizontalAdvance(self.lb_title.text()) + 8
+        badge_w = max(self.lb_badge.sizeHint().width(), self.lb_badge.width())
+        close_w = self.btn_close.width() or 24
+        avail = self.body.width() - 32 - badge_w - close_w - 24
+        want = max(40, text_w if text_w < avail else max(40, avail))
+        if self.lb_title.width() != want:
+            self.lb_title.setFixedWidth(want)
+
     def _reflow(self):
         """글자크기 변경 후 높이를 다시 맞추되 밑변(위쪽 고정 모서리는 윗변)을 유지."""
         self.adjustSize()
-        h = min(self.sizeHint().height() + 20,
-                int(self._screen_h() * 0.72))
         bottom = self.y() + self.height()
-        self.setFixedHeight(h)
-        if not str(self.cfg["overlay_corner"]).startswith("top"):
-            self.move(self.x(), bottom - h)
+        self._apply_height()
+        if not str(self.cfg.get("overlay_corner") or "").startswith("top"):
+            self.move(self.x(), bottom - self.height())
+        self._fit_title()
 
     def set_badge(self, kind: str, text: str = "", tip: str = ""):
         """배지 갱신. tip 생략 시 kind 기본 문구( BADGE_TIP )를 쓴다."""
@@ -625,26 +802,33 @@ class OverlayCard(QWidget):
     def set_state(self, text: str):
         self.lb_state.setText(text)
 
-    def _place_and_show(self):
-        perf.mark(getattr(self, "_rid", 0), "show_requested")
-        self.adjustSize()
-        h = min(self.sizeHint().height() + 20,
-                int(self._screen_h() * 0.72))
-        self.setFixedHeight(h)
+    def _move_to_corner(self):
         from PySide6.QtGui import QGuiApplication
         scr = QGuiApplication.primaryScreen().availableGeometry()
         corner = self.cfg["overlay_corner"]
         m = 14
         ml, mt, mr, mb = self.MARGIN, self.MARGIN - 2, self.MARGIN, \
             self.MARGIN + 6
+        h = self.height()
         # 투명 여백(MARGIN)을 뺀 '보이는 카드' 기준으로 화면 가장자리 정렬
         x = scr.right() - self.width() + mr - m if "right" in corner \
             else scr.left() + m - ml
-        y = scr.top() + m - mt if corner.startswith("top") \
+        y = scr.top() + m - mt if str(corner).startswith("top") \
             else scr.bottom() - h + mb - m
         self.move(x, y)
+
+    def _place_and_show(self):
+        perf.mark(getattr(self, "_rid", 0), "show_requested")
+        self.adjustSize()
+        self.setFixedWidth(int(self.cfg["overlay_width"]) + self.MARGIN * 2)
+        self._apply_height()
+        self._move_to_corner()
         self.show(); self.raise_(); self.activateWindow()
         self._restart_hide()
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self._fit_title()
 
     def _restart_hide(self):
         sec = int(self.cfg["auto_hide_sec"] or 0)
@@ -697,18 +881,9 @@ class OverlayCard(QWidget):
     # ---------- 동작 ----------
     def _on_copy(self):
         lst = self._current_list or ([self._current] if self._current else [])
-        if not lst:
+        text = format_copy(lst)
+        if not text:
             return
-        if len(lst) == 1:
-            text = lst[0]["body"]
-        else:
-            blocks = []
-            for res in lst:
-                head = f"{res['law_name']} 제{res['art_no']}조"
-                if res.get("title"):
-                    head += f"({res['title']})"
-                blocks.append(f"{head}\n{res['body']}")
-            text = "\n\n".join(blocks)
         self.copy_requested.emit(text)
         self.lb_state.setText("클립보드에 복사했습니다.")
 

@@ -38,6 +38,7 @@ CONFIG_PATH = os.path.join(_appdata_dir(), "config.json")
 
 DEFAULTS = {
     "overlay_width": 470,          # 오버레이 카드 폭(px)
+    "overlay_height": 0,           # 오버레이 카드 높이(px). 0 = 내용에 맞춤
     "theme": "light",              # 시스템(system)/라이트(light)/다크(dark)
     "font_pt": 11,                 # 장·절 표기와 조문 본문 글자크기(pt)
     "overlay_corner": "bottom_right", # top_right/top_left/bottom_right/bottom_left
@@ -47,6 +48,7 @@ DEFAULTS = {
     "hotkey": "ctrl+alt+l",        # 조회창 단축키(기본: Ctrl+Alt+L)
     "autostart": True,             # Windows 시작 시 자동 실행(기본 켬)
     "clipboard_paused": False,
+    "law_link_mode": "set",        # set=법·시행령·시행규칙 세트 / article=해당 조문만
     "last_update_check": "",       # 마지막 개정 점검(YYYYMMDDHHMM)
     "last_law": "",                # 마지막 표시/조회 본법('같은 법' 해석용)
     "update_check": True,          # 프로그램 새 버전 알림(배포 서버)

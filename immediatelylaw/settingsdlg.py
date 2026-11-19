@@ -168,9 +168,27 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._tab_data(), "데이터")
         self.tabs.addTab(self._tab_local(), "자치법규")
         self.tabs.addTab(self._tab_api(), "API 키")
-        self.tabs.addTab(self._tab_overlay(), "오버레이")
-        self.tabs.addTab(self._tab_general(), "일반")
+        self.tabs.addTab(self._with_apply(self._tab_overlay()), "오버레이")
+        self.tabs.addTab(self._with_apply(self._tab_general()), "일반")
         self.tabs.addTab(self._tab_info(), "정보")
+
+    def _with_apply(self, inner: QWidget) -> QWidget:
+        """탭 내용 아래에 적용 버튼을 붙인다. 창을 닫지 않고 바로 반영한다."""
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(inner, 1)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        btn = QPushButton("적용")
+        btn.clicked.connect(self._apply_now)
+        row.addWidget(btn)
+        lay.addLayout(row)
+        return w
+
+    def _apply_now(self):
+        self._save_fields()
+        self.saved.emit()
 
     # ---------- 데이터 ----------
     def _tab_data(self):
@@ -505,8 +523,13 @@ class SettingsDialog(QDialog):
     def _tab_overlay(self):
         w = QWidget()
         form = QFormLayout(w)
-        self.sp_w = QSpinBox(minimum=320, maximum=720, singleStep=10,
+        self.sp_w = QSpinBox(minimum=320, maximum=1400, singleStep=10,
                              value=int(self.cfg["overlay_width"]))
+        self.sp_w.setSuffix(" px")
+        self.sp_h = QSpinBox(minimum=0, maximum=1600, singleStep=20,
+                             value=int(self.cfg.get("overlay_height") or 0))
+        self.sp_h.setSuffix(" px")
+        self.sp_h.setSpecialValueText("자동")
         self.cb_corner = QComboBox()
         for k, label in (("top_right", "우측 상단"), ("top_left", "좌측 상단"),
                          ("bottom_right", "우측 하단"),
@@ -530,6 +553,7 @@ class SettingsDialog(QDialog):
         self.cb_theme.setCurrentIndex(max(0, i))
         form.addRow("모드", self.cb_theme)
         form.addRow("카드 폭", self.sp_w)
+        form.addRow("카드 높이", self.sp_h)
         form.addRow("위 위치", self.cb_corner)
         form.addRow("글자 크기 (장·절·본문)", self.sp_font)
         form.addRow("자동 숨김", self.sp_hide)
@@ -558,6 +582,15 @@ class SettingsDialog(QDialog):
         tip_key.setWordWrap(True)
         self.chk_pause = QCheckBox("클립보드 감시 일시정지 (복사해도 카드 미표시)")
         self.chk_pause.setChecked(bool(self.cfg["clipboard_paused"]))
+        self.cb_link = QComboBox()
+        self.cb_link.addItem("법+시행령+시행규칙 세트로 보기", "set")
+        self.cb_link.addItem("해당 조문만 바로보기", "article")
+        link_mode = str(self.cfg.get("law_link_mode") or "set")
+        i = self.cb_link.findData(link_mode)
+        self.cb_link.setCurrentIndex(max(0, i))
+        link_tip = QLabel("법령정보센터 링크를 눌렀을 때 열리는 화면입니다.")
+        link_tip.setStyleSheet("color:#6b7280;")
+        link_tip.setWordWrap(True)
         self.chk_auto = QCheckBox("Windows 시작 시 자동으로 실행")
         self.chk_auto.setChecked(get_autostart())
         self.chk_updchk = QCheckBox("새 버전 알림(자동 업데이트 확인)")
@@ -568,6 +601,9 @@ class SettingsDialog(QDialog):
         lay.addLayout(row_key)
         lay.addWidget(tip_key)
         lay.addWidget(self.chk_pause)
+        lay.addWidget(QLabel("법령정보센터 링크"))
+        lay.addWidget(self.cb_link)
+        lay.addWidget(link_tip)
         lay.addWidget(self.chk_auto)
         lay.addWidget(self.chk_updchk)
         lay.addWidget(self.btn_updnow)
@@ -643,6 +679,8 @@ class SettingsDialog(QDialog):
     # ---------- 저장 ----------
     def _save_fields(self):
         self.cfg["overlay_width"] = self.sp_w.value()
+        self.cfg["overlay_height"] = self.sp_h.value()
+        self.cfg["law_link_mode"] = self.cb_link.currentData() or "set"
         self.cfg["overlay_corner"] = self.cb_corner.currentData()
         self.cfg["auto_hide_sec"] = self.sp_hide.value()
         self.cfg["font_pt"] = self.sp_font.value()

@@ -41,6 +41,17 @@ def cfg():
     return {"clipboard_paused": False, "last_law": ""}
 
 
+def test_pause_suppresses_citation(qtbot, cfg):
+    cfg["clipboard_paused"] = True
+    clip = FakeClipboard(["민법 제750조"])
+    w = ClipboardWatcher(clip, cfg)
+    hits = []
+    w.citation.connect(hits.append)
+    clip.dataChanged.emit()
+    qtbot.wait(200)
+    assert hits == []
+
+
 def test_normal_copy_emits(qtbot, cfg):
     clip = FakeClipboard(["민법 제750조"])
     w = ClipboardWatcher(clip, cfg)

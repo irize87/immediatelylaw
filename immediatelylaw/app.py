@@ -561,17 +561,28 @@ class ImmediatelyLaw(QObject):
 
     # ---------- 트레이 ----------
     def _build_menu(self):
-        # 요청 사양: 우클릭 메뉴는 3개만 — 법령검색창 / 설정 / 종료
         m = QMenu()
         act_search = m.addAction(
             "법령 검색창  (%s)" % hk.format_spec(
                 self.cfg.get("hotkey"), sep=" + "))
         act_search.triggered.connect(self.show_search)
+        act_pause = m.addAction("클립보드 감지 일시정지")
+        act_pause.setCheckable(True)
+        act_pause.setChecked(bool(self.cfg.get("clipboard_paused")))
+        act_pause.triggered.connect(self._toggle_clipboard_pause)
         act_set = m.addAction(f"설정  (v{__version__})")
         act_set.triggered.connect(self.show_settings)
         act_quit = m.addAction("종료")
         act_quit.triggered.connect(self.app.quit)
         self.tray.setContextMenu(m)
+
+    def _toggle_clipboard_pause(self, checked):
+        """트레이 체크와 설정-일반의 일시정지를 같은 값으로 맞춘다."""
+        self.cfg["clipboard_paused"] = bool(checked)
+        self.cfg.save()
+        dlg = self.settings
+        if dlg is not None and getattr(dlg, "chk_pause", None) is not None:
+            dlg.chk_pause.setChecked(bool(checked))
 
     def _tray_activated(self, reason):
         if reason == QSystemTrayIcon.Trigger:
@@ -616,6 +627,11 @@ class ImmediatelyLaw(QObject):
     def _on_settings_saved(self):
         self._apply_hotkey()
         self._build_menu()                 # menu caption shows the new key
+        self.overlay.apply_box()
+        if self.overlay.isVisible() and self.overlay._current:
+            self.overlay.footer.set_article_link(self.overlay._current)
+        if self.search is not None and self.search._last_res:
+            self.search.footer.set_article_link(self.search._last_res)
 
 
 def _single_instance() -> bool:
