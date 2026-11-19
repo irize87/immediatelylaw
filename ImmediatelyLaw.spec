@@ -5,10 +5,13 @@
 """
 # PyInstaller에 PySide6 훅이 내장되어 수집을 자동 처리한다.
 # (collect_submodules로 전체를 강제하면 WebEngine까지 들어가지므로 쓰지 않는다)
+# certifi CA 묶음은 훅에만 맡기면 수집이 빠진 빌드에서 버전 확인이 죽는다.
+from PyInstaller.utils.hooks import collect_data_files
+
 a = Analysis(
     ["run.py"],
     pathex=["."],
-    datas=[],
+    datas=collect_data_files("certifi"),
     hiddenimports=[],
     excludes=["PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
               "PySide6.Qt3DCore", "PySide6.QtQuick", "PySide6.QtQml",

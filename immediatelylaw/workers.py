@@ -4,11 +4,42 @@ import hashlib
 import json
 import lzma
 import os
+import sys
 import tempfile
 import zipfile
 
 import requests
 from PySide6.QtCore import QThread, Signal
+
+
+def ensure_ca_bundle() -> str:
+    """requests가 검증에 쓸 CA 묶음 파일을 찾고 환경변수로 고정한다.
+
+    PyInstaller로 묶인 실행 파일은 certifi.where()가
+    `_internal/certifi/cacert.pem`을 가리키는데, 그 파일이 없으면
+    버전 확인이 'invalid path'로 바로 실패한다. 있는 경로만 쓴다.
+    """
+    candidates = []
+    try:
+        import certifi
+        candidates.append(certifi.where())
+    except Exception:
+        pass
+    meipass = getattr(sys, "_MEIPASS", "")
+    if meipass:
+        candidates.append(os.path.join(meipass, "certifi", "cacert.pem"))
+    if getattr(sys, "frozen", False):
+        candidates.append(os.path.join(
+            os.path.dirname(sys.executable), "_internal", "certifi", "cacert.pem"))
+    for path in candidates:
+        if path and os.path.isfile(path):
+            os.environ["REQUESTS_CA_BUNDLE"] = path
+            os.environ["SSL_CERT_FILE"] = path
+            return path
+    return ""
+
+
+ensure_ca_bundle()
 
 from . import resolver
 from .config import clean_base_url

@@ -5,11 +5,13 @@
 실수로 스페이스 같은 값을 넣어 유통 검증을 통과하지 못해도 배포 서버로
 폴백돼야 한다(예외·Crash 없이)."""
 import json
+import os
 
 from immediatelylaw import config as cfgmod
 from immediatelylaw.config import Config, clean_base_url
 from immediatelylaw.workers import (BUILTIN_HOSTS, GITHUB_BASE, GITLAB_BASE,
-                                    MIRROR_BASE, data_host_list, pick_release)
+                                    MIRROR_BASE, data_host_list, ensure_ca_bundle,
+                                    pick_release)
 
 LEGACY = "https://raw.githubusercontent.com/nazgregory/immediatelylaw-data/dist"
 
@@ -87,6 +89,12 @@ def test_duplicate_channels_collapsed():
            "mirror_url": "https://b.example"}
     assert data_host_list(cfg) == [MIRROR_BASE, GITHUB_BASE, GITLAB_BASE,
                                    "https://b.example"]
+
+
+def test_ensure_ca_bundle_points_at_a_real_file():
+    path = ensure_ca_bundle()
+    assert path and os.path.isfile(path)
+    assert os.environ["REQUESTS_CA_BUNDLE"] == path
 
 
 def test_pick_release_requires_sha_and_keeps_requested_kind():

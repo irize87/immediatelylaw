@@ -86,7 +86,9 @@ class MarqueeLabel(QWidget):
         f = QFont("Malgun Gothic", 12)
         f.setBold(True)
         self.setFont(f)
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        # 글자 폭으로 밀면 배지와 겹친다. 레이아웃이 준 폭 안에서만 그린다.
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setMinimumWidth(48)
         self.setMinimumHeight(self._line_h())
         self._timer = QTimer(self)
         self._timer.setInterval(25)
@@ -94,6 +96,12 @@ class MarqueeLabel(QWidget):
 
     def text(self) -> str:
         return self._text
+
+    def sizeHint(self):
+        return QSize(80, self._line_h())
+
+    def minimumSizeHint(self):
+        return QSize(48, self._line_h())
 
     def setText(self, text: str):
         self._text = text or ""
@@ -529,9 +537,9 @@ class OverlayCard(QWidget):
         self.lb_badge = QLabel("")
         bf = QFont("Malgun Gothic", 9); bf.setBold(True)
         self.lb_badge.setFont(bf)
-        top.addWidget(self.lb_title)
-        top.addWidget(self.lb_badge)      # 제목 바로 뒤 알약 배지
-        top.addStretch(1)
+        self.lb_badge.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        top.addWidget(self.lb_title, 1)
+        top.addWidget(self.lb_badge, 0)
         # (현행) 배지 옆 닫기 버튼
         self.btn_close = QPushButton("✕")
         self.btn_close.setFixedSize(24, 24)
@@ -637,7 +645,7 @@ class OverlayCard(QWidget):
                                     "border-radius:11px;"
                                     "font-family:'Malgun Gothic';")
         self.lb_badge.setToolTip(tip)
-        self._fit_title()
+        self.lb_badge.adjustSize()
 
     @staticmethod
     def _screen_h():
@@ -693,7 +701,6 @@ class OverlayCard(QWidget):
         perf.mark(rid, "html_end")
         self.lb_state.setText(note)
         self._place_and_show()
-        self._fit_title()
         if res.get("source") != "local-reg" or res.get("low_conf"):
             self.verify_requested.emit(res)
 
@@ -763,26 +770,12 @@ class OverlayCard(QWidget):
         if self.isVisible():
             self._apply_height()
             self._move_to_corner()
-            self._fit_title()
             return
         if self._configured_height():
             self.setFixedHeight(self._configured_height())
         else:
             self.setMinimumHeight(0)
             self.setMaximumHeight(16777215)
-
-    def _fit_title(self):
-        """짧은 제목은 글자 폭만큼, 긴 제목은 배지·닫기 버튼을 남기고 흐른다."""
-        if self.body.width() < 80:
-            return
-        fm = QFontMetrics(self.lb_title.font())
-        text_w = fm.horizontalAdvance(self.lb_title.text()) + 8
-        badge_w = max(self.lb_badge.sizeHint().width(), self.lb_badge.width())
-        close_w = self.btn_close.width() or 24
-        avail = self.body.width() - 32 - badge_w - close_w - 24
-        want = max(40, text_w if text_w < avail else max(40, avail))
-        if self.lb_title.width() != want:
-            self.lb_title.setFixedWidth(want)
 
     def _reflow(self):
         """글자크기 변경 후 높이를 다시 맞추되 밑변(위쪽 고정 모서리는 윗변)을 유지."""
@@ -791,7 +784,6 @@ class OverlayCard(QWidget):
         self._apply_height()
         if not str(self.cfg.get("overlay_corner") or "").startswith("top"):
             self.move(self.x(), bottom - self.height())
-        self._fit_title()
 
     def set_badge(self, kind: str, text: str = "", tip: str = ""):
         """배지 갱신. tip 생략 시 kind 기본 문구( BADGE_TIP )를 쓴다."""
@@ -825,10 +817,6 @@ class OverlayCard(QWidget):
         self._move_to_corner()
         self.show(); self.raise_(); self.activateWindow()
         self._restart_hide()
-
-    def resizeEvent(self, ev):
-        super().resizeEvent(ev)
-        self._fit_title()
 
     def _restart_hide(self):
         sec = int(self.cfg["auto_hide_sec"] or 0)

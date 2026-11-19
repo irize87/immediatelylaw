@@ -78,6 +78,27 @@ def test_copy_includes_citation_and_body():
     assert "고의 또는 과실" in text
 
 
+def test_long_title_does_not_cover_badge(qtbot):
+    cfg = {"overlay_width": 470, "font_pt": 11, "theme": "light",
+           "overlay_corner": "bottom_right", "auto_hide_sec": 0}
+    card = OverlayCard(cfg)
+    qtbot.addWidget(card)
+    res = {"found": True, "source": "local",
+           "law_name": "개인정보 보호법", "art_no": "15",
+           "title": "개인정보의 수집·이용", "chap": "제1절",
+           "body": "본문", "pending": 0}
+    card.show_results([res])
+    card.set_badge("neutral", "조회")
+    qtbot.wait(30)
+    title = card.lb_title.geometry()
+    badge = card.lb_badge.geometry()
+    close = card.btn_close.geometry()
+    assert title.width() >= 48
+    assert title.right() <= badge.left()
+    assert badge.right() <= close.left()
+    assert badge.width() >= card.lb_badge.sizeHint().width() - 2
+
+
 def test_long_title_is_kept_for_marquee(qtbot):
     from immediatelylaw.overlay import MarqueeLabel
     w = MarqueeLabel()
